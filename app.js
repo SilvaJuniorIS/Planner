@@ -1,4 +1,5 @@
-const STORAGE_KEY = "process_planner_v1";
+const STORAGE_KEY = "atlasflow_v2";
+const LEGACY_STORAGE_KEY = "process_planner_v1";
 
 const statuses = [
   ["entrada", "Entrada"],
@@ -12,6 +13,8 @@ const statuses = [
 const docs = ["DFD", "ETP", "TR", "Edital", "Anexos", "Pesquisa de mercado"];
 
 const state = {
+  users: [],
+  currentUserId: "",
   processes: [],
   view: "list",
 };
@@ -24,10 +27,15 @@ const els = {
   statusFilter: document.querySelector("#statusFilter"),
   priorityFilter: document.querySelector("#priorityFilter"),
   docFilter: document.querySelector("#docFilter"),
+  userSelect: document.querySelector("#userSelect"),
+  activeUserName: document.querySelector("#activeUserName"),
+  activeUserMeta: document.querySelector("#activeUserMeta"),
   processDialog: document.querySelector("#processDialog"),
   processForm: document.querySelector("#processForm"),
   moveDialog: document.querySelector("#moveDialog"),
   moveForm: document.querySelector("#moveForm"),
+  userDialog: document.querySelector("#userDialog"),
+  userForm: document.querySelector("#userForm"),
 };
 
 function todayISO() {
@@ -45,10 +53,32 @@ function uid() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function seedData() {
+function defaultUsers() {
+  return [
+    {
+      id: "user-compras",
+      name: "Setor de Compras",
+      email: "compras@prefeitura.local",
+      department: "Compras",
+      role: "Operador",
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "user-juridico",
+      name: "Juridico Administrativo",
+      email: "juridico@prefeitura.local",
+      department: "Juridico",
+      role: "Revisor",
+      createdAt: new Date().toISOString(),
+    },
+  ];
+}
+
+function seedData(userId = "user-compras") {
   return [
     {
       id: uid(),
+      userId,
       number: "707/2026",
       year: "2026",
       subject: "Manutencao preventiva e corretiva da frota municipal",
@@ -78,6 +108,7 @@ function seedData() {
     },
     {
       id: uid(),
+      userId,
       number: "919/2026",
       year: "2026",
       subject: "Aquisicao de plaquetas patrimoniais metalicas",
@@ -108,24 +139,77 @@ function seedData() {
   ];
 }
 
+function normalizeProcess(process, userId) {
+  return {
+    ...process,
+    userId: process.userId || userId,
+    docs: Array.isArray(process.docs) ? process.docs : [],
+    history: Array.isArray(process.history) ? process.history : [],
+  };
+}
+
 function load() {
   const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) {
-    state.processes = seedData();
-    persist();
-    return;
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      state.users = Array.isArray(parsed.users) && parsed.users.length ? parsed.users : defaultUsers();
+      state.currentUserId = parsed.currentUserId || state.users[0].id;
+      state.processes = Array.isArray(parsed.processes)
+        ? parsed.processes.map((process) => normalizeProcess(process, state.currentUserId))
+        : seedData(state.currentUserId);
+      ensureCurrentUser();
+      persist();
+      return;
+    } catch {
+      resetToSeed();
+      return;
+    }
   }
 
-  try {
-    state.processes = JSON.parse(raw);
-  } catch {
-    state.processes = seedData();
-    persist();
+  const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (legacy) {
+    try {
+      const users = defaultUsers();
+      const processes = JSON.parse(legacy);
+      state.users = users;
+      state.currentUserId = users[0].id;
+      state.processes = Array.isArray(processes)
+        ? processes.map((process) => normalizeProcess(process, users[0].id))
+        : seedData(users[0].id);
+      persist();
+      return;
+    } catch {
+      resetToSeed();
+      return;
+    }
+  }
+
+  resetToSeed();
+}
+
+function resetToSeed() {
+  state.users = defaultUsers();
+  state.currentUserId = state.users[0].id;
+  state.processes = seedData(state.currentUserId);
+  persist();
+}
+
+function ensureCurrentUser() {
+  if (!state.users.length) state.users = defaultUsers();
+  if (!state.users.some((user) => user.id === state.currentUserId)) {
+    state.currentUserId = state.users[0].id;
   }
 }
 
 function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state.processes));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    app: "AtlasFlow",
+    version: 2,
+    users: state.users,
+    currentUserId: state.currentUserId,
+    processes: state.processes,
+  }));
 }
 
 function escapeHTML(value) {
@@ -147,6 +231,15 @@ function formatDate(value) {
   return `${day}/${month}/${year}`;
 }
 
+function currentUser() {
+  ensureCurrentUser();
+  return state.users.find((user) => user.id === state.currentUserId);
+}
+
+function currentUserProcesses() {
+  return state.processes.filter((process) => process.userId === state.currentUserId);
+}
+
 function isLate(process) {
   return process.deadline && process.status !== "concluido" && process.deadline < todayISO();
 }
@@ -157,7 +250,7 @@ function filteredProcesses() {
   const priority = els.priorityFilter.value;
   const doc = els.docFilter.value;
 
-  return state.processes
+  return currentUserProcesses()
     .filter((process) => {
       const haystack = [
         process.number,
@@ -178,11 +271,23 @@ function filteredProcesses() {
     .sort((a, b) => (a.deadline || "9999-12-31").localeCompare(b.deadline || "9999-12-31"));
 }
 
+function renderUsers() {
+  els.userSelect.innerHTML = state.users
+    .map((user) => `<option value="${escapeHTML(user.id)}">${escapeHTML(user.name)}</option>`)
+    .join("");
+  els.userSelect.value = state.currentUserId;
+
+  const user = currentUser();
+  els.activeUserName.textContent = user?.name || "Usuario";
+  els.activeUserMeta.textContent = [user?.department, user?.role, user?.email].filter(Boolean).join(" | ") || "Base individual";
+}
+
 function renderMetrics() {
-  document.querySelector("#metricOpen").textContent = state.processes.filter((p) => p.status !== "concluido").length;
-  document.querySelector("#metricLate").textContent = state.processes.filter(isLate).length;
-  document.querySelector("#metricUrgent").textContent = state.processes.filter((p) => p.priority === "urgente" && p.status !== "concluido").length;
-  document.querySelector("#metricDone").textContent = state.processes.filter((p) => p.status === "concluido").length;
+  const processes = currentUserProcesses();
+  document.querySelector("#metricOpen").textContent = processes.filter((p) => p.status !== "concluido").length;
+  document.querySelector("#metricLate").textContent = processes.filter(isLate).length;
+  document.querySelector("#metricUrgent").textContent = processes.filter((p) => p.priority === "urgente" && p.status !== "concluido").length;
+  document.querySelector("#metricDone").textContent = processes.filter((p) => p.status === "concluido").length;
 }
 
 function processTags(process) {
@@ -221,7 +326,7 @@ function renderList() {
   const filtered = filteredProcesses();
 
   if (!filtered.length) {
-    els.processList.innerHTML = '<div class="empty">Nenhum processo encontrado com os filtros atuais.</div>';
+    els.processList.innerHTML = '<div class="empty">Nenhum processo encontrado para este usuario e filtros atuais.</div>';
     return;
   }
 
@@ -243,12 +348,12 @@ function renderList() {
 }
 
 function renderHistory() {
-  const events = state.processes
+  const events = currentUserProcesses()
     .flatMap((process) => (process.history || []).map((event) => ({ ...event, process })))
     .sort((a, b) => `${b.date}`.localeCompare(`${a.date}`));
 
   if (!events.length) {
-    els.historyList.innerHTML = '<div class="empty">Nenhuma movimentacao registrada.</div>';
+    els.historyList.innerHTML = '<div class="empty">Nenhuma movimentacao registrada para este usuario.</div>';
     return;
   }
 
@@ -263,6 +368,7 @@ function renderHistory() {
 }
 
 function renderAll() {
+  renderUsers();
   renderMetrics();
   renderKanban();
   renderList();
@@ -285,6 +391,7 @@ function openProcessDialog(process = null) {
   els.processForm.elements.year.value = process?.year || new Date().getFullYear();
   els.processForm.elements.status.value = process?.status || "entrada";
   els.processForm.elements.priority.value = process?.priority || "normal";
+  els.processForm.elements.owner.value = process?.owner || currentUser()?.name || "";
 
   if (process) {
     for (const [key, value] of Object.entries(process)) {
@@ -310,6 +417,7 @@ function formDataToProcess(form, existing = null) {
   const arrivalDate = data.get("arrivalDate") || todayISO();
   const process = {
     id: data.get("id") || uid(),
+    userId: existing?.userId || state.currentUserId,
     number: data.get("number").trim(),
     year: data.get("year").trim(),
     subject: data.get("subject").trim(),
@@ -334,9 +442,9 @@ function formDataToProcess(form, existing = null) {
       date: arrivalDate,
       action: "Entrada registrada",
       status,
-      to: process.owner || "Mesa atual",
+      to: process.owner || currentUser()?.name || "Mesa atual",
       purpose: process.purpose || "Cadastro inicial",
-      notes: "Processo cadastrado no Process Planner.",
+      notes: "Processo cadastrado no AtlasFlow.",
     });
   } else if (existing.status !== status) {
     process.history.push({
@@ -355,7 +463,7 @@ function formDataToProcess(form, existing = null) {
 function saveProcess(event) {
   event.preventDefault();
   const id = els.processForm.elements.id.value;
-  const existing = state.processes.find((process) => process.id === id);
+  const existing = state.processes.find((process) => process.id === id && process.userId === state.currentUserId);
   const process = formDataToProcess(els.processForm, existing);
 
   if (existing) {
@@ -370,7 +478,7 @@ function saveProcess(event) {
 }
 
 function openMoveDialog(id) {
-  const process = state.processes.find((item) => item.id === id);
+  const process = state.processes.find((item) => item.id === id && item.userId === state.currentUserId);
   if (!process) return;
 
   els.moveForm.reset();
@@ -384,7 +492,7 @@ function saveMovement(event) {
   event.preventDefault();
   const data = new FormData(els.moveForm);
   const id = data.get("id");
-  const process = state.processes.find((item) => item.id === id);
+  const process = state.processes.find((item) => item.id === id && item.userId === state.currentUserId);
   if (!process) return;
 
   process.status = data.get("status");
@@ -410,7 +518,7 @@ function saveMovement(event) {
 }
 
 function deleteProcess(id) {
-  const process = state.processes.find((item) => item.id === id);
+  const process = state.processes.find((item) => item.id === id && item.userId === state.currentUserId);
   if (!process) return;
   if (!confirm(`Excluir o processo ${process.number || "sem numero"}?`)) return;
 
@@ -430,13 +538,15 @@ function addQuickProcess(event) {
     return;
   }
 
+  const user = currentUser();
   const process = {
     id: uid(),
+    userId: state.currentUserId,
     number,
     year: new Date().getFullYear().toString(),
     subject,
     secretary: data.get("secretary").trim(),
-    owner: "Mesa atual",
+    owner: user?.name || "Mesa atual",
     priority: data.get("priority"),
     arrivalDate: todayISO(),
     fromSector: data.get("secretary").trim(),
@@ -453,7 +563,7 @@ function addQuickProcess(event) {
         date: todayISO(),
         action: "Entrada rapida registrada",
         status: "entrada",
-        to: "Mesa atual",
+        to: user?.name || "Mesa atual",
         purpose: "Triagem",
         notes: "Cadastro rapido criado no painel lateral.",
       },
@@ -466,18 +576,46 @@ function addQuickProcess(event) {
   renderAll();
 }
 
+function saveUser(event) {
+  event.preventDefault();
+  const data = new FormData(els.userForm);
+  const name = data.get("name").trim();
+  if (!name) {
+    alert("Informe o nome do usuario.");
+    return;
+  }
+
+  const user = {
+    id: uid(),
+    name,
+    email: data.get("email").trim(),
+    department: data.get("department").trim(),
+    role: data.get("role").trim() || "Operador",
+    createdAt: new Date().toISOString(),
+  };
+
+  state.users.push(user);
+  state.currentUserId = user.id;
+  persist();
+  els.userForm.reset();
+  closeDialog(els.userDialog);
+  renderAll();
+}
+
 function exportData() {
   const payload = {
-    app: "Process Planner",
-    version: 1,
+    app: "AtlasFlow",
+    version: 2,
     exportedAt: new Date().toISOString(),
+    users: state.users,
+    currentUserId: state.currentUserId,
     processes: state.processes,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `process-planner-${todayISO()}.json`;
+  link.download = `atlasflow-${todayISO()}.json`;
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -490,9 +628,19 @@ function importData(event) {
   reader.onload = () => {
     try {
       const parsed = JSON.parse(reader.result);
-      const processes = Array.isArray(parsed) ? parsed : parsed.processes;
-      if (!Array.isArray(processes)) throw new Error("Formato invalido");
-      state.processes = processes;
+      if (Array.isArray(parsed)) {
+        state.users = defaultUsers();
+        state.currentUserId = state.users[0].id;
+        state.processes = parsed.map((process) => normalizeProcess(process, state.currentUserId));
+      } else {
+        const users = Array.isArray(parsed.users) && parsed.users.length ? parsed.users : defaultUsers();
+        const currentUserId = parsed.currentUserId || users[0].id;
+        const processes = Array.isArray(parsed.processes) ? parsed.processes : [];
+        state.users = users;
+        state.currentUserId = currentUserId;
+        state.processes = processes.map((process) => normalizeProcess(process, currentUserId));
+      }
+      ensureCurrentUser();
       persist();
       renderAll();
       alert("Importacao concluida.");
@@ -507,15 +655,25 @@ function importData(event) {
 
 function bindEvents() {
   document.querySelector("#newProcessBtn").addEventListener("click", () => openProcessDialog());
+  document.querySelector("#newUserBtn").addEventListener("click", () => els.userDialog.showModal());
   document.querySelector("#closeProcessDialog").addEventListener("click", () => closeDialog(els.processDialog));
   document.querySelector("#cancelProcessBtn").addEventListener("click", () => closeDialog(els.processDialog));
   document.querySelector("#closeMoveDialog").addEventListener("click", () => closeDialog(els.moveDialog));
   document.querySelector("#cancelMoveBtn").addEventListener("click", () => closeDialog(els.moveDialog));
+  document.querySelector("#closeUserDialog").addEventListener("click", () => closeDialog(els.userDialog));
+  document.querySelector("#cancelUserBtn").addEventListener("click", () => closeDialog(els.userDialog));
   document.querySelector("#quickForm").addEventListener("submit", addQuickProcess);
   document.querySelector("#exportBtn").addEventListener("click", exportData);
   document.querySelector("#importInput").addEventListener("change", importData);
   els.processForm.addEventListener("submit", saveProcess);
   els.moveForm.addEventListener("submit", saveMovement);
+  els.userForm.addEventListener("submit", saveUser);
+
+  els.userSelect.addEventListener("change", () => {
+    state.currentUserId = els.userSelect.value;
+    persist();
+    renderAll();
+  });
 
   [els.searchInput, els.statusFilter, els.priorityFilter, els.docFilter].forEach((input) => {
     input.addEventListener("input", renderAll);
@@ -535,7 +693,7 @@ function bindEvents() {
     const moveId = event.target.closest("[data-move]")?.dataset.move;
     const deleteId = event.target.closest("[data-delete]")?.dataset.delete;
 
-    if (editId) openProcessDialog(state.processes.find((process) => process.id === editId));
+    if (editId) openProcessDialog(state.processes.find((process) => process.id === editId && process.userId === state.currentUserId));
     if (moveId) openMoveDialog(moveId);
     if (deleteId) deleteProcess(deleteId);
   });

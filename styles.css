@@ -185,6 +185,42 @@ main {
   margin: 24px auto 64px;
 }
 
+.user-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.user-strip span,
+.user-strip small {
+  display: block;
+  color: var(--muted);
+}
+
+.user-strip strong {
+  display: block;
+  margin: 3px 0;
+  font-size: 1.15rem;
+}
+
+.user-actions {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.user-actions label {
+  min-width: 240px;
+}
+
 .metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -478,6 +514,7 @@ dialog::backdrop {
 @media (max-width: 720px) {
   .header-main,
   .brand,
+  .user-strip,
   .process-row,
   .panel-heading {
     display: grid;
@@ -487,6 +524,9 @@ dialog::backdrop {
   .header-actions button,
   .header-actions .button-link,
   .file-action,
+  .user-actions,
+  .user-actions button,
+  .user-actions label,
   .view-actions,
   .view-actions button {
     width: 100%;

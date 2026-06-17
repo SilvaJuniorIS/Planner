@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Process Planner | Controle de Processos</title>
+  <title>AtlasFlow | Controle de Processos</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="app-header">
     <div class="header-main">
       <div class="brand">
-        <div class="brand-mark">PP</div>
+        <div class="brand-mark">AF</div>
         <div>
-          <h1>Process Planner</h1>
+          <h1>AtlasFlow</h1>
           <p>Gestao visual da vida dos processos administrativos: entrada, analise, documentos, prazos, encaminhamento e historico.</p>
         </div>
       </div>
@@ -29,6 +29,21 @@
   </header>
 
   <main>
+    <section class="user-strip" aria-label="Usuario ativo">
+      <div>
+        <span>Usuario ativo</span>
+        <strong id="activeUserName">Usuario</strong>
+        <small id="activeUserMeta">Base individual</small>
+      </div>
+      <div class="user-actions">
+        <label for="userSelect">
+          Alternar usuario
+          <select id="userSelect"></select>
+        </label>
+        <button type="button" id="newUserBtn">Novo usuario</button>
+      </div>
+    </section>
+
     <section class="metrics" aria-label="Indicadores">
       <article class="metric">
         <span>Na mesa</span>
@@ -268,6 +283,40 @@
       <div class="modal-actions">
         <button type="button" id="cancelMoveBtn">Cancelar</button>
         <button class="primary" type="submit">Registrar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="userDialog">
+    <form method="dialog" class="modal-card" id="userForm">
+      <div class="modal-head">
+        <div>
+          <h2>Novo usuario</h2>
+          <p>Crie uma mesa, setor ou pessoa para separar processos e historico.</p>
+        </div>
+        <button type="button" class="icon-button" id="closeUserDialog" aria-label="Fechar">x</button>
+      </div>
+      <div class="form-grid">
+        <label>
+          Nome
+          <input name="name" required placeholder="Setor de Compras" />
+        </label>
+        <label>
+          E-mail
+          <input name="email" type="email" placeholder="compras@prefeitura.local" />
+        </label>
+        <label>
+          Setor
+          <input name="department" placeholder="Compras, Juridico, Patrimonio..." />
+        </label>
+        <label>
+          Perfil
+          <input name="role" placeholder="Operador, Revisor, Gestor..." />
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="cancelUserBtn">Cancelar</button>
+        <button class="primary" type="submit">Salvar usuario</button>
       </div>
     </form>
   </dialog>
