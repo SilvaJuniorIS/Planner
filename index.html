@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Process Planner | Controle de Processos</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-main">
+      <div class="brand">
+        <div class="brand-mark">PP</div>
+        <div>
+          <h1>Process Planner</h1>
+          <p>Gestao visual da vida dos processos administrativos: entrada, analise, documentos, prazos, encaminhamento e historico.</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="primary" type="button" id="newProcessBtn">Novo processo</button>
+        <button type="button" id="exportBtn">Exportar JSON</button>
+        <label class="file-action">
+          Importar JSON
+          <input id="importInput" type="file" accept="application/json,.json" />
+        </label>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="metrics" aria-label="Indicadores">
+      <article class="metric">
+        <span>Na mesa</span>
+        <strong id="metricOpen">0</strong>
+        <small>Processos sob responsabilidade atual.</small>
+      </article>
+      <article class="metric">
+        <span>Atrasados</span>
+        <strong id="metricLate">0</strong>
+        <small>Prazo interno vencido.</small>
+      </article>
+      <article class="metric">
+        <span>Urgentes</span>
+        <strong id="metricUrgent">0</strong>
+        <small>Demandas marcadas como prioridade.</small>
+      </article>
+      <article class="metric">
+        <span>Concluidos</span>
+        <strong id="metricDone">0</strong>
+        <small>Processos enviados ou finalizados.</small>
+      </article>
+    </section>
+
+    <section class="toolbar" aria-label="Filtros">
+      <div>
+        <label for="searchInput">Busca</label>
+        <input id="searchInput" type="search" placeholder="Numero, objeto, secretaria, responsavel..." />
+      </div>
+      <div>
+        <label for="statusFilter">Status</label>
+        <select id="statusFilter"></select>
+      </div>
+      <div>
+        <label for="priorityFilter">Prioridade</label>
+        <select id="priorityFilter">
+          <option value="">Todas</option>
+          <option value="normal">Normal</option>
+          <option value="urgente">Urgente</option>
+        </select>
+      </div>
+      <div>
+        <label for="docFilter">Documento</label>
+        <select id="docFilter"></select>
+      </div>
+      <button type="button" id="clearFiltersBtn">Limpar</button>
+    </section>
+
+    <section class="content-grid">
+      <div class="panel kanban-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Kanban operacional</h2>
+            <p>Arraste mentalmente o fluxo: entrada, analise, criacao documental, revisao, devolucao e conclusao.</p>
+          </div>
+        </div>
+        <div class="kanban" id="kanban"></div>
+      </div>
+
+      <aside class="panel side-panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Entrada rapida</h2>
+            <p>Cadastre o essencial e detalhe depois.</p>
+          </div>
+        </div>
+        <form id="quickForm" class="quick-form">
+          <label>
+            Numero
+            <input name="number" placeholder="707/2026" />
+          </label>
+          <label>
+            Objeto
+            <textarea name="subject" placeholder="Contratacao de sistema, servico, compra ou revisao documental"></textarea>
+          </label>
+          <label>
+            Secretaria
+            <input name="secretary" placeholder="Compras, Patrimonio, Juridico..." />
+          </label>
+          <div class="two-cols">
+            <label>
+              Prazo
+              <input name="deadline" type="date" />
+            </label>
+            <label>
+              Prioridade
+              <select name="priority">
+                <option value="normal">Normal</option>
+                <option value="urgente">Urgente</option>
+              </select>
+            </label>
+          </div>
+          <button class="primary full" type="submit">Registrar entrada</button>
+        </form>
+      </aside>
+    </section>
+
+    <section class="panel list-panel">
+      <div class="panel-heading">
+        <div>
+          <h2>Processos</h2>
+          <p>Lista filtravel com prazos, documentos e acoes principais.</p>
+        </div>
+        <div class="view-actions">
+          <button type="button" class="active" id="listTab">Lista</button>
+          <button type="button" id="historyTab">Historico</button>
+        </div>
+      </div>
+      <div id="processList" class="process-list"></div>
+      <div id="historyList" class="history-list hidden"></div>
+    </section>
+  </main>
+
+  <dialog id="processDialog">
+    <form method="dialog" class="modal-card" id="processForm">
+      <div class="modal-head">
+        <div>
+          <h2 id="dialogTitle">Novo processo</h2>
+          <p>Registre dados de identificacao, controle, documentos e pendencias.</p>
+        </div>
+        <button type="button" class="icon-button" id="closeProcessDialog" aria-label="Fechar">x</button>
+      </div>
+
+      <input type="hidden" name="id" />
+      <div class="form-grid">
+        <label>
+          Numero
+          <input name="number" required placeholder="707/2026" />
+        </label>
+        <label>
+          Ano
+          <input name="year" inputmode="numeric" placeholder="2026" />
+        </label>
+        <label class="wide">
+          Objeto
+          <textarea name="subject" required></textarea>
+        </label>
+        <label>
+          Secretaria
+          <input name="secretary" />
+        </label>
+        <label>
+          Responsavel
+          <input name="owner" />
+        </label>
+        <label>
+          Data de chegada
+          <input name="arrivalDate" type="date" />
+        </label>
+        <label>
+          Origem
+          <input name="fromSector" placeholder="Gabinete, Secretaria, Juridico..." />
+        </label>
+        <label>
+          Finalidade
+          <input name="purpose" placeholder="Analisar, criar TR, revisar..." />
+        </label>
+        <label>
+          Prazo
+          <input name="deadline" type="date" />
+        </label>
+        <label>
+          Status
+          <select name="status"></select>
+        </label>
+        <label>
+          Prioridade
+          <select name="priority">
+            <option value="normal">Normal</option>
+            <option value="urgente">Urgente</option>
+          </select>
+        </label>
+        <label>
+          Data de saida
+          <input name="exitDate" type="date" />
+        </label>
+        <label>
+          Destino
+          <input name="toSector" />
+        </label>
+        <label>
+          Finalidade da saida
+          <input name="exitPurpose" />
+        </label>
+        <fieldset class="wide docs-field">
+          <legend>Documentos</legend>
+          <label><input type="checkbox" name="docs" value="DFD" /> DFD</label>
+          <label><input type="checkbox" name="docs" value="ETP" /> ETP</label>
+          <label><input type="checkbox" name="docs" value="TR" /> TR</label>
+          <label><input type="checkbox" name="docs" value="Edital" /> Edital</label>
+          <label><input type="checkbox" name="docs" value="Anexos" /> Anexos</label>
+          <label><input type="checkbox" name="docs" value="Pesquisa de mercado" /> Pesquisa de mercado</label>
+        </fieldset>
+        <label class="wide">
+          Observacoes e pendencias
+          <textarea name="notes"></textarea>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="cancelProcessBtn">Cancelar</button>
+        <button class="primary" type="submit">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="moveDialog">
+    <form method="dialog" class="modal-card" id="moveForm">
+      <div class="modal-head">
+        <div>
+          <h2>Movimentar processo</h2>
+          <p>Registre cada encaminhamento para preservar a rastreabilidade.</p>
+        </div>
+        <button type="button" class="icon-button" id="closeMoveDialog" aria-label="Fechar">x</button>
+      </div>
+      <input type="hidden" name="id" />
+      <div class="form-grid">
+        <label>
+          Data
+          <input name="date" type="date" required />
+        </label>
+        <label>
+          Novo status
+          <select name="status"></select>
+        </label>
+        <label>
+          Destino
+          <input name="to" placeholder="Secretaria, Juridico, CPL..." />
+        </label>
+        <label>
+          Finalidade
+          <input name="purpose" placeholder="Correcao, parecer, assinatura..." />
+        </label>
+        <label class="wide">
+          Observacao
+          <textarea name="notes"></textarea>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="cancelMoveBtn">Cancelar</button>
+        <button class="primary" type="submit">Registrar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
