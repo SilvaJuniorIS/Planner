@@ -1,5 +1,6 @@
 const STORAGE_KEY = "atlasflow_v2";
 const LEGACY_STORAGE_KEY = "process_planner_v1";
+const RETURN_REASONS_KEY = "atlasflow_return_reasons_v1";
 
 const statuses = [
   ["entrada", "Entrada"],
@@ -11,6 +12,16 @@ const statuses = [
 ];
 
 const docs = ["DFD", "ETP", "TR", "Edital", "Anexos", "Pesquisa de mercado"];
+
+const defaultReturnReasons = [
+  "Ausencia ou inconsistencia no Documento de Formalizacao da Demanda (DFD).",
+  "Necessidade de complementar ou revisar o Estudo Tecnico Preliminar (ETP).",
+  "Termo de Referencia com especificacoes insuficientes ou divergentes.",
+  "Pesquisa de mercado ausente, vencida ou sem demonstracao da metodologia utilizada.",
+  "Ausencia de justificativa para quantitativos, lotes ou escolha da solucao.",
+  "Divergencia entre objeto, documentos de planejamento e documentos anexos.",
+  "Necessidade de saneamento documental antes do prosseguimento.",
+];
 
 const state = {
   users: [],
@@ -36,6 +47,10 @@ const els = {
   moveForm: document.querySelector("#moveForm"),
   userDialog: document.querySelector("#userDialog"),
   userForm: document.querySelector("#userForm"),
+  cotaDialog: document.querySelector("#cotaDialog"),
+  cotaForm: document.querySelector("#cotaForm"),
+  cotaReasons: document.querySelector("#cotaReasons"),
+  cotaOutput: document.querySelector("#cotaOutput"),
 };
 
 function todayISO() {
@@ -53,25 +68,63 @@ function uid() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function simplePasswordHash(password) {
+  if (!password) return "";
+  let hash = 0;
+  for (let index = 0; index < password.length; index += 1) {
+    hash = ((hash << 5) - hash) + password.charCodeAt(index);
+    hash |= 0;
+  }
+  return `local:${Math.abs(hash).toString(16)}`;
+}
+
 function defaultUsers() {
   return [
     {
       id: "user-compras",
-      name: "Setor de Compras",
-      email: "compras@prefeitura.local",
+      name: "Israel Junior",
+      email: "israel.junior@prefeitura.local",
       department: "Compras",
-      role: "Operador",
+      role: "Administrador",
+      passwordEnabled: false,
+      passwordHash: "",
       createdAt: new Date().toISOString(),
     },
     {
       id: "user-juridico",
-      name: "Juridico Administrativo",
-      email: "juridico@prefeitura.local",
-      department: "Juridico",
-      role: "Revisor",
+      name: "Visitante",
+      email: "visitante@prefeitura.local",
+      department: "Visitante",
+      role: "Consulta",
+      passwordEnabled: false,
+      passwordHash: "",
       createdAt: new Date().toISOString(),
     },
   ];
+}
+
+function normalizeUser(user) {
+  const defaults = {
+    passwordEnabled: false,
+    passwordHash: "",
+    createdAt: new Date().toISOString(),
+  };
+  const normalized = { ...defaults, ...user };
+
+  if (normalized.id === "user-compras") {
+    normalized.name = "Israel Junior";
+    normalized.email = normalized.email === "compras@prefeitura.local" ? "israel.junior@prefeitura.local" : normalized.email;
+    normalized.role = normalized.role === "Operador" ? "Administrador" : normalized.role;
+  }
+
+  if (normalized.id === "user-juridico") {
+    normalized.name = "Visitante";
+    normalized.email = normalized.email === "juridico@prefeitura.local" ? "visitante@prefeitura.local" : normalized.email;
+    normalized.department = normalized.department === "Juridico" ? "Visitante" : normalized.department;
+    normalized.role = normalized.role === "Revisor" ? "Consulta" : normalized.role;
+  }
+
+  return normalized;
 }
 
 function seedData(userId = "user-compras") {
@@ -83,7 +136,7 @@ function seedData(userId = "user-compras") {
       year: "2026",
       subject: "Manutencao preventiva e corretiva da frota municipal",
       secretary: "Secretaria de Administracao",
-      owner: "Setor de Compras",
+      owner: "Israel Junior",
       priority: "urgente",
       arrivalDate: todayISO(),
       fromSector: "Secretaria requisitante",
@@ -100,7 +153,7 @@ function seedData(userId = "user-compras") {
           date: todayISO(),
           action: "Entrada registrada",
           status: "analisar",
-          to: "Setor de Compras",
+          to: "Israel Junior",
           purpose: "Analise inicial",
           notes: "Processo recebido para saneamento documental.",
         },
@@ -113,7 +166,7 @@ function seedData(userId = "user-compras") {
       year: "2026",
       subject: "Aquisicao de plaquetas patrimoniais metalicas",
       secretary: "Patrimonio",
-      owner: "Setor de Compras",
+      owner: "Israel Junior",
       priority: "normal",
       arrivalDate: addDays(-1),
       fromSector: "Patrimonio",
@@ -130,7 +183,7 @@ function seedData(userId = "user-compras") {
           date: addDays(-1),
           action: "Entrada registrada",
           status: "criar",
-          to: "Setor de Compras",
+          to: "Israel Junior",
           purpose: "Producao documental",
           notes: "Processo cadastrado para elaboracao de TR.",
         },
@@ -153,7 +206,7 @@ function load() {
   if (raw) {
     try {
       const parsed = JSON.parse(raw);
-      state.users = Array.isArray(parsed.users) && parsed.users.length ? parsed.users : defaultUsers();
+      state.users = Array.isArray(parsed.users) && parsed.users.length ? parsed.users.map(normalizeUser) : defaultUsers();
       state.currentUserId = parsed.currentUserId || state.users[0].id;
       state.processes = Array.isArray(parsed.processes)
         ? parsed.processes.map((process) => normalizeProcess(process, state.currentUserId))
@@ -172,7 +225,7 @@ function load() {
     try {
       const users = defaultUsers();
       const processes = JSON.parse(legacy);
-      state.users = users;
+      state.users = users.map(normalizeUser);
       state.currentUserId = users[0].id;
       state.processes = Array.isArray(processes)
         ? processes.map((process) => normalizeProcess(process, users[0].id))
@@ -197,6 +250,7 @@ function resetToSeed() {
 
 function ensureCurrentUser() {
   if (!state.users.length) state.users = defaultUsers();
+  state.users = state.users.map(normalizeUser);
   if (!state.users.some((user) => user.id === state.currentUserId)) {
     state.currentUserId = state.users[0].id;
   }
@@ -238,6 +292,22 @@ function currentUser() {
 
 function currentUserProcesses() {
   return state.processes.filter((process) => process.userId === state.currentUserId);
+}
+
+function loadReturnReasons() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(RETURN_REASONS_KEY) || "[]");
+    return Array.isArray(saved) && saved.length ? saved : defaultReturnReasons;
+  } catch {
+    return defaultReturnReasons;
+  }
+}
+
+function saveReturnReasons(reasons) {
+  const clean = reasons
+    .map((reason) => reason.trim())
+    .filter(Boolean);
+  localStorage.setItem(RETURN_REASONS_KEY, JSON.stringify(clean.length ? clean : defaultReturnReasons));
 }
 
 function isLate(process) {
@@ -339,6 +409,7 @@ function renderList() {
         <div class="docs-list">${(process.docs || []).map((doc) => `<span class="tag">${escapeHTML(doc)}</span>`).join("")}</div>
       </div>
       <div class="row-actions">
+        <button type="button" data-cota="${process.id}">Cota</button>
         <button type="button" data-move="${process.id}">Movimentar</button>
         <button type="button" data-edit="${process.id}">Editar</button>
         <button type="button" class="danger" data-delete="${process.id}">Excluir</button>
@@ -488,6 +559,103 @@ function openMoveDialog(id) {
   els.moveDialog.showModal();
 }
 
+function openCotaDialog(id) {
+  const process = state.processes.find((item) => item.id === id && item.userId === state.currentUserId);
+  if (!process) return;
+
+  els.cotaForm.reset();
+  els.cotaForm.elements.id.value = id;
+  els.cotaForm.elements.destination.value = process.fromSector || process.secretary || "";
+  els.cotaForm.elements.date.value = todayISO();
+  els.cotaForm.elements.signer.value = currentUser()?.name || process.owner || "";
+  els.cotaForm.elements.reasonsText.value = loadReturnReasons().join("\n");
+  renderCotaReasons();
+  updateCotaPreview();
+  els.cotaDialog.showModal();
+}
+
+function renderCotaReasons() {
+  const reasons = loadReturnReasons();
+  els.cotaReasons.innerHTML = reasons.map((reason, index) => `
+    <label class="reason-option">
+      <input type="checkbox" name="selectedReasons" value="${index}" checked />
+      <span>${escapeHTML(reason)}</span>
+    </label>
+  `).join("");
+}
+
+function selectedCotaReasons() {
+  const reasons = loadReturnReasons();
+  return Array.from(els.cotaForm.querySelectorAll('[name="selectedReasons"]:checked'))
+    .map((input) => reasons[Number(input.value)])
+    .filter(Boolean);
+}
+
+function buildCotaText(process, selectedReasons, data) {
+  const processNumber = [process.number, process.year].filter(Boolean).join("/");
+  const docsList = (process.docs || []).length ? process.docs.join(", ") : "Nao informado";
+  const deadline = process.deadline ? formatDate(process.deadline) : "Sem prazo informado";
+  const arrival = process.arrivalDate ? formatDate(process.arrivalDate) : "Sem data informada";
+  const reasonsText = selectedReasons.length
+    ? selectedReasons.map((reason, index) => `${index + 1}. ${reason}`).join("\n")
+    : "1. Necessidade de saneamento documental antes do prosseguimento.";
+
+  return [
+    "COTA DE DEVOLUCAO",
+    "",
+    `Processo: ${processNumber || "Nao informado"}`,
+    `Objeto: ${process.subject || "Nao informado"}`,
+    `Secretaria/Setor: ${process.secretary || "Nao informado"}`,
+    `Origem: ${process.fromSector || "Nao informado"}`,
+    `Responsavel atual: ${process.owner || currentUser()?.name || "Nao informado"}`,
+    `Data de chegada: ${arrival}`,
+    `Prazo interno: ${deadline}`,
+    `Documentos relacionados: ${docsList}`,
+    "",
+    `Ao setor ${data.destination || "competente"},`,
+    "",
+    "Encaminho o presente processo para devolucao/saneamento, considerando a necessidade de ajustes antes do prosseguimento da instrucao processual.",
+    "",
+    "Motivos da devolucao:",
+    reasonsText,
+    "",
+    data.extraNotes ? `Observacoes complementares:\n${data.extraNotes}` : "",
+    "",
+    "Apos as correcoes, o processo podera retornar para nova analise e continuidade do fluxo administrativo.",
+    "",
+    `${data.city || "Local"}, ${formatDate(data.date || todayISO())}.`,
+    "",
+    data.signer || currentUser()?.name || "Responsavel",
+  ].filter((line, index, lines) => line !== "" || lines[index - 1] !== "").join("\n");
+}
+
+function updateCotaPreview() {
+  const id = els.cotaForm.elements.id.value;
+  const process = state.processes.find((item) => item.id === id && item.userId === state.currentUserId);
+  if (!process) return;
+
+  const data = {
+    destination: els.cotaForm.elements.destination.value.trim(),
+    city: els.cotaForm.elements.city.value.trim(),
+    date: els.cotaForm.elements.date.value || todayISO(),
+    signer: els.cotaForm.elements.signer.value.trim(),
+    extraNotes: els.cotaForm.elements.extraNotes.value.trim(),
+  };
+  els.cotaOutput.value = buildCotaText(process, selectedCotaReasons(), data);
+}
+
+async function copyCotaText() {
+  els.cotaOutput.select();
+  els.cotaOutput.setSelectionRange(0, els.cotaOutput.value.length);
+  try {
+    await navigator.clipboard.writeText(els.cotaOutput.value);
+    alert("Cota copiada para a area de transferencia.");
+  } catch {
+    document.execCommand("copy");
+    alert("Cota copiada.");
+  }
+}
+
 function saveMovement(event) {
   event.preventDefault();
   const data = new FormData(els.moveForm);
@@ -591,6 +759,8 @@ function saveUser(event) {
     email: data.get("email").trim(),
     department: data.get("department").trim(),
     role: data.get("role").trim() || "Operador",
+    passwordEnabled: Boolean(data.get("password")),
+    passwordHash: simplePasswordHash(data.get("password")),
     createdAt: new Date().toISOString(),
   };
 
@@ -662,6 +832,16 @@ function bindEvents() {
   document.querySelector("#cancelMoveBtn").addEventListener("click", () => closeDialog(els.moveDialog));
   document.querySelector("#closeUserDialog").addEventListener("click", () => closeDialog(els.userDialog));
   document.querySelector("#cancelUserBtn").addEventListener("click", () => closeDialog(els.userDialog));
+  document.querySelector("#closeCotaDialog").addEventListener("click", () => closeDialog(els.cotaDialog));
+  document.querySelector("#cancelCotaBtn").addEventListener("click", () => closeDialog(els.cotaDialog));
+  document.querySelector("#saveReasonsBtn").addEventListener("click", () => {
+    saveReturnReasons(els.cotaForm.elements.reasonsText.value.split("\n"));
+    renderCotaReasons();
+    updateCotaPreview();
+  });
+  document.querySelector("#copyCotaBtn").addEventListener("click", copyCotaText);
+  els.cotaForm.addEventListener("input", updateCotaPreview);
+  els.cotaReasons.addEventListener("change", updateCotaPreview);
   document.querySelector("#quickForm").addEventListener("submit", addQuickProcess);
   document.querySelector("#exportBtn").addEventListener("click", exportData);
   document.querySelector("#importInput").addEventListener("change", importData);
@@ -691,8 +871,10 @@ function bindEvents() {
   document.body.addEventListener("click", (event) => {
     const editId = event.target.closest("[data-edit]")?.dataset.edit;
     const moveId = event.target.closest("[data-move]")?.dataset.move;
+    const cotaId = event.target.closest("[data-cota]")?.dataset.cota;
     const deleteId = event.target.closest("[data-delete]")?.dataset.delete;
 
+    if (cotaId) openCotaDialog(cotaId);
     if (editId) openProcessDialog(state.processes.find((process) => process.id === editId && process.userId === state.currentUserId));
     if (moveId) openMoveDialog(moveId);
     if (deleteId) deleteProcess(deleteId);

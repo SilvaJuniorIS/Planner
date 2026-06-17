@@ -398,6 +398,12 @@ main {
   grid-column: 1 / -1;
 }
 
+.form-hint {
+  margin: -2px 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 .list-panel {
   margin-top: 18px;
 }
@@ -515,6 +521,66 @@ dialog::backdrop {
   min-height: auto;
 }
 
+.cota-modal {
+  width: min(1180px, calc(100vw - 28px));
+}
+
+.cota-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(360px, 1.08fr);
+  gap: 16px;
+}
+
+.cota-options,
+.cota-preview {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.cota-reasons-box {
+  display: grid;
+  gap: 10px;
+}
+
+.cota-reasons {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.reason-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  padding: 9px;
+  color: var(--text);
+  font-weight: 650;
+}
+
+.reason-option input {
+  width: auto;
+  min-height: auto;
+  margin-top: 3px;
+}
+
+.reason-editor {
+  min-height: 130px;
+}
+
+#cotaOutput {
+  min-height: 620px;
+  font-family: Consolas, "Courier New", monospace;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
 .modal-actions {
   justify-content: flex-end;
   margin-top: 16px;
@@ -532,7 +598,8 @@ dialog::backdrop {
   }
 
   .toolbar,
-  .content-grid {
+  .content-grid,
+  .cota-grid {
     grid-template-columns: 1fr;
   }
 

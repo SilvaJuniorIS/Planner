@@ -287,6 +287,68 @@
     </form>
   </dialog>
 
+  <dialog id="cotaDialog">
+    <form method="dialog" class="modal-card cota-modal" id="cotaForm">
+      <div class="modal-head">
+        <div>
+          <h2>Gerar cota de devolucao</h2>
+          <p>Use os dados do processo, marque os motivos e ajuste o texto antes de copiar.</p>
+        </div>
+        <button type="button" class="icon-button" id="closeCotaDialog" aria-label="Fechar">x</button>
+      </div>
+      <input type="hidden" name="id" />
+      <div class="cota-grid">
+        <section class="cota-options">
+          <div class="form-grid">
+            <label>
+              Destino da devolucao
+              <input name="destination" placeholder="Secretaria requisitante" />
+            </label>
+            <label>
+              Local
+              <input name="city" placeholder="Nome do municipio" />
+            </label>
+            <label>
+              Data
+              <input name="date" type="date" />
+            </label>
+            <label>
+              Assinatura
+              <input name="signer" placeholder="Responsavel pela analise" />
+            </label>
+          </div>
+
+          <fieldset class="cota-reasons-box">
+            <legend>Motivos da devolucao</legend>
+            <div id="cotaReasons" class="cota-reasons"></div>
+          </fieldset>
+
+          <label>
+            Editar lista de motivos
+            <textarea name="reasonsText" class="reason-editor" placeholder="Um motivo por linha"></textarea>
+          </label>
+          <button type="button" id="saveReasonsBtn">Atualizar motivos</button>
+
+          <label>
+            Observacoes complementares
+            <textarea name="extraNotes" placeholder="Informe orientacoes adicionais para saneamento, se necessario."></textarea>
+          </label>
+        </section>
+
+        <section class="cota-preview">
+          <label>
+            Previa da cota
+            <textarea id="cotaOutput" readonly></textarea>
+          </label>
+        </section>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="cancelCotaBtn">Fechar</button>
+        <button type="button" id="copyCotaBtn" class="primary">Copiar cota</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="userDialog">
     <form method="dialog" class="modal-card" id="userForm">
       <div class="modal-head">
@@ -299,7 +361,7 @@
       <div class="form-grid">
         <label>
           Nome
-          <input name="name" required placeholder="Setor de Compras" />
+          <input name="name" required placeholder="Israel Junior" />
         </label>
         <label>
           E-mail
@@ -313,6 +375,11 @@
           Perfil
           <input name="role" placeholder="Operador, Revisor, Gestor..." />
         </label>
+        <label class="wide">
+          Senha futura
+          <input name="password" type="password" placeholder="Opcional nesta versao local" />
+        </label>
+        <p class="wide form-hint">A senha fica preparada no cadastro para a futura versao com login. Nesta versao local, a troca de usuario continua livre.</p>
       </div>
       <div class="modal-actions">
         <button type="button" id="cancelUserBtn">Cancelar</button>
@@ -321,6 +388,6 @@
     </form>
   </dialog>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=20260617-users-auth"></script>
 </body>
 </html>

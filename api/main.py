@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import hashlib
+import secrets
 import sqlite3
 import uuid
 from contextlib import contextmanager
@@ -27,11 +29,30 @@ class UserCreate(BaseModel):
     email: str = ""
     department: str = ""
     role: str = "Operador"
+    password: str = ""
 
 
-class User(UserCreate):
+class User(BaseModel):
     id: str
+    name: str
+    email: str = ""
+    department: str = ""
+    role: str = "Operador"
+    password_enabled: bool = False
     created_at: str
+
+
+class AuthLogin(BaseModel):
+    user_id: str
+    password: str
+
+
+class AuthSession(BaseModel):
+    user_id: str
+    name: str
+    department: str = ""
+    role: str = ""
+    token: str
 
 
 class ProcessBase(BaseModel):
@@ -123,6 +144,23 @@ def new_id() -> str:
     return str(uuid.uuid4())
 
 
+def password_hash(password: str, salt: str) -> str:
+    return hashlib.sha256(f"{salt}:{password}".encode("utf-8")).hexdigest()
+
+
+def build_password_fields(password: str) -> tuple[str, str]:
+    if not password:
+        return "", ""
+    salt = secrets.token_hex(16)
+    return salt, password_hash(password, salt)
+
+
+def ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    columns = {row["name"] for row in conn.execute(f"pragma table_info({table})").fetchall()}
+    if column not in columns:
+        conn.execute(f"alter table {table} add column {column} {definition}")
+
+
 def validate_status(value: str) -> None:
     if value not in STATUSES:
         raise HTTPException(status_code=422, detail=f"Status invalido: {value}")
@@ -134,7 +172,11 @@ def validate_priority(value: str) -> None:
 
 
 def row_to_user(row: sqlite3.Row) -> dict[str, Any]:
-    return dict(row)
+    item = dict(row)
+    item["password_enabled"] = bool(item.get("password_hash"))
+    item.pop("password_hash", None)
+    item.pop("password_salt", None)
+    return item
 
 
 def row_to_process(row: sqlite3.Row) -> dict[str, Any]:
@@ -192,6 +234,8 @@ def init_db() -> None:
                 email text not null default '',
                 department text not null default '',
                 role text not null default 'Operador',
+                password_hash text not null default '',
+                password_salt text not null default '',
                 created_at text not null
             );
 
@@ -232,16 +276,38 @@ def init_db() -> None:
             );
             """
         )
+        ensure_column(conn, "users", "password_hash", "text not null default ''")
+        ensure_column(conn, "users", "password_salt", "text not null default ''")
 
         count = conn.execute("select count(*) as total from users").fetchone()["total"]
         if count == 0:
             created = now()
             conn.executemany(
-                "insert into users (id, name, email, department, role, created_at) values (?, ?, ?, ?, ?, ?)",
+                "insert into users (id, name, email, department, role, password_hash, password_salt, created_at) values (?, ?, ?, ?, ?, ?, ?, ?)",
                 [
-                    ("user-compras", "Setor de Compras", "compras@prefeitura.local", "Compras", "Operador", created),
-                    ("user-juridico", "Juridico Administrativo", "juridico@prefeitura.local", "Juridico", "Revisor", created),
+                    ("user-compras", "Israel Junior", "israel.junior@prefeitura.local", "Compras", "Administrador", "", "", created),
+                    ("user-juridico", "Visitante", "visitante@prefeitura.local", "Visitante", "Consulta", "", "", created),
                 ],
+            )
+        else:
+            conn.execute(
+                """
+                update users
+                   set name = 'Israel Junior',
+                       email = case when email = 'compras@prefeitura.local' then 'israel.junior@prefeitura.local' else email end,
+                       role = case when role = 'Operador' then 'Administrador' else role end
+                 where id = 'user-compras'
+                """
+            )
+            conn.execute(
+                """
+                update users
+                   set name = 'Visitante',
+                       email = case when email = 'juridico@prefeitura.local' then 'visitante@prefeitura.local' else email end,
+                       department = case when department = 'Juridico' then 'Visitante' else department end,
+                       role = case when role = 'Revisor' then 'Consulta' else role end
+                 where id = 'user-juridico'
+                """
             )
 
 
@@ -264,10 +330,11 @@ def list_users() -> list[dict[str, Any]]:
 @app.post("/api/users", response_model=User, status_code=status.HTTP_201_CREATED)
 def create_user(payload: UserCreate) -> dict[str, Any]:
     user_id = new_id()
+    salt, hashed = build_password_fields(payload.password)
     with db() as conn:
         conn.execute(
-            "insert into users (id, name, email, department, role, created_at) values (?, ?, ?, ?, ?, ?)",
-            (user_id, payload.name.strip(), payload.email, payload.department, payload.role or "Operador", now()),
+            "insert into users (id, name, email, department, role, password_hash, password_salt, created_at) values (?, ?, ?, ?, ?, ?, ?, ?)",
+            (user_id, payload.name.strip(), payload.email, payload.department, payload.role or "Operador", hashed, salt, now()),
         )
         return row_to_user(conn.execute("select * from users where id = ?", (user_id,)).fetchone())
 
@@ -276,6 +343,27 @@ def create_user(payload: UserCreate) -> dict[str, Any]:
 def get_user(user_id: str) -> dict[str, Any]:
     with db() as conn:
         return row_to_user(ensure_user(conn, user_id))
+
+
+@app.post("/api/auth/login", response_model=AuthSession)
+def login(payload: AuthLogin) -> dict[str, Any]:
+    with db() as conn:
+        user = ensure_user(conn, payload.user_id)
+        saved_hash = user["password_hash"]
+        saved_salt = user["password_salt"]
+        if saved_hash and password_hash(payload.password, saved_salt) != saved_hash:
+            raise HTTPException(status_code=401, detail="Senha invalida")
+        if not saved_hash and payload.password:
+            raise HTTPException(status_code=401, detail="Usuario ainda nao possui senha configurada")
+
+        token_seed = f"{user['id']}:{now()}:{secrets.token_hex(16)}"
+        return {
+            "user_id": user["id"],
+            "name": user["name"],
+            "department": user["department"],
+            "role": user["role"],
+            "token": hashlib.sha256(token_seed.encode("utf-8")).hexdigest(),
+        }
 
 
 @app.get("/api/users/{user_id}/processes", response_model=list[Process])
