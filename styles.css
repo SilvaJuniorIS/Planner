@@ -301,7 +301,24 @@ main {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 10px;
+  height: 430px;
   min-height: 300px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.kanban-column::-webkit-scrollbar {
+  width: 10px;
+}
+
+.kanban-column::-webkit-scrollbar-thumb {
+  background: #b9c5d6;
+  border: 2px solid var(--surface-soft);
+  border-radius: 999px;
+}
+
+.kanban-column::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .column-title {
@@ -517,6 +534,10 @@ dialog::backdrop {
   .toolbar,
   .content-grid {
     grid-template-columns: 1fr;
+  }
+
+  .kanban-column {
+    height: 380px;
   }
 }
 
