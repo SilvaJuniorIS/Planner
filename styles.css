@@ -34,7 +34,8 @@ textarea {
 }
 
 button,
-.file-action {
+.file-action,
+.button-link {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -46,8 +47,16 @@ button,
 }
 
 button:hover,
-.file-action:hover {
+.file-action:hover,
+.button-link:hover {
   border-color: var(--primary);
+}
+
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
 }
 
 button.primary {
@@ -476,6 +485,7 @@ dialog::backdrop {
 
   .header-actions,
   .header-actions button,
+  .header-actions .button-link,
   .file-action,
   .view-actions,
   .view-actions button {

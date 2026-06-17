@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manual do Usuario | Process Planner</title>
+  <link rel="stylesheet" href="manual.css" />
+</head>
+<body>
+  <header class="manual-hero">
+    <nav class="manual-nav">
+      <a class="back-button" href="index.html">Voltar ao sistema</a>
+      <span>Manual do Usuario</span>
+    </nav>
+
+    <section class="hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">Process Planner</p>
+        <h1>Manual ilustrado para acompanhar a vida dos processos</h1>
+        <p>
+          Aprenda a registrar entradas, controlar prazos, movimentar processos,
+          acompanhar o kanban, consultar historico e manter backup da sua base.
+        </p>
+      </div>
+      <div class="hero-illustration" aria-hidden="true">
+        <div class="desk-card card-one">
+          <span></span>
+          <strong>707/2026</strong>
+          <small>Analisar TR e ETP</small>
+        </div>
+        <div class="desk-card card-two">
+          <span></span>
+          <strong>Prazo</strong>
+          <small>3 dias</small>
+        </div>
+        <div class="flow-line"></div>
+        <div class="flow-dot dot-one"></div>
+        <div class="flow-dot dot-two"></div>
+        <div class="flow-dot dot-three"></div>
+      </div>
+    </section>
+  </header>
+
+  <main class="manual-shell">
+    <aside class="toc">
+      <strong>Neste manual</strong>
+      <a href="#visao-geral">Visao geral</a>
+      <a href="#primeiros-passos">Primeiros passos</a>
+      <a href="#tela-inicial">Tela inicial</a>
+      <a href="#cadastro">Cadastro</a>
+      <a href="#kanban">Kanban</a>
+      <a href="#movimentacao">Movimentacao</a>
+      <a href="#historico">Historico</a>
+      <a href="#prazos">Prazos</a>
+      <a href="#backup">Backup</a>
+      <a href="#rotina">Rotina recomendada</a>
+      <a href="#problemas">Solucao de problemas</a>
+    </aside>
+
+    <article class="manual-content">
+      <section id="visao-geral" class="manual-section">
+        <div class="section-heading">
+          <span class="step-badge">01</span>
+          <div>
+            <h2>Visao Geral</h2>
+            <p>O Process Planner e uma aplicacao local para organizar processos administrativos por etapa, prazo, prioridade e historico.</p>
+          </div>
+        </div>
+        <div class="answer-grid">
+          <div><strong>Onde esta?</strong><span>Status e coluna do kanban.</span></div>
+          <div><strong>Com quem esta?</strong><span>Responsavel, origem e destino.</span></div>
+          <div><strong>O que precisa?</strong><span>Documentos, observacoes e pendencias.</span></div>
+          <div><strong>Qual prazo?</strong><span>Data limite e marcador de atraso.</span></div>
+        </div>
+      </section>
+
+      <section id="primeiros-passos" class="manual-section">
+        <div class="section-heading">
+          <span class="step-badge">02</span>
+          <div>
+            <h2>Primeiros Passos</h2>
+            <p>Abra o sistema e confira se a tela inicial carregou com indicadores, kanban e lista de processos.</p>
+          </div>
+        </div>
+        <ol class="steps">
+          <li>Abra o arquivo <code>index.html</code> ou acesse o endereco publicado no GitHub Pages.</li>
+          <li>Use <strong>Novo processo</strong> para cadastrar com detalhes.</li>
+          <li>Use <strong>Entrada rapida</strong> quando quiser registrar agora e completar depois.</li>
+          <li>Use <strong>Exportar JSON</strong> ao fim do dia para manter backup.</li>
+        </ol>
+        <div class="tip-box">
+          <strong>Importante:</strong> nesta V1, os dados ficam salvos no navegador usado. Se abrir em outro computador ou navegador, a base sera diferente.
+        </div>
+      </section>
+
+      <section id="tela-inicial" class="manual-section">
+        <div class="section-heading">
+          <span class="step-badge">03</span>
+          <div>
+            <h2>Tela Inicial</h2>
+            <p>A tela foi organizada para leitura rapida da operacao.</p>
+          </div>
+        </div>
+        <div class="screen-map">
+          <div class="screen-header">Cabecalho: Manual, Novo processo, Exportar e Importar</div>
+          <div class="screen-metrics">Indicadores: Na mesa, Atrasados, Urgentes, Concluidos</div>
+          <div class="screen-filters">Filtros: busca, status, prioridade e documento</div>
+          <div class="screen-main">Kanban operacional</div>
+          <div class="screen-side">Entrada rapida</div>
+          <div class="screen-list">Lista e historico</div>
+        </div>
+      </section>
+
+      <section id="cadastro" class="manual-section">
+        <div class="section-heading">
+          <span class="step-badge">04</span>
+          <div>
+            <h2>Cadastro de Processo</h2>
+            <p>O cadastro completo concentra identificacao, controle, prazo, saida, documentos e pendencias.</p>
+          </div>
+        </div>
+        <div class="cards-grid">
+          <div class="info-card">
+            <h3>Identificacao</h3>
+            <p>Numero, ano, objeto, secretaria e responsavel.</p>
+          </div>
+          <div class="info-card">
+            <h3>Controle</h3>
+            <p>Data de chegada, origem, finalidade, prazo, status e prioridade.</p>
+          </div>
+          <div class="info-card">
+            <h3>Documentos</h3>
+            <p>DFD, ETP, TR, Edital, Anexos e Pesquisa de mercado.</p>
+          </div>
+          <div class="info-card">
+            <h3>Saida</h3>
+            <p>Data de saida, destino e finalidade do encaminhamento.</p>
+          </div>
+        </div>
+        <div class="example-box">
+          <strong>Exemplo de observacao objetiva:</strong>
+          <p>Falta anexar pesquisa de mercado atualizada e ajustar justificativa do quantitativo no TR.</p>
+        </div>
+      </section>
+
+      <section id="kanban" class="manual-section">
+        <div class="section-heading">
+          <span class="step-badge">05</span>
+          <div>
+            <h2>Kanban Operacional</h2>
+            <p>O kanban mostra gargalos e proximas acoes de forma visual.</p>
+          </div>
+        </div>
+        <div class="mini-kanban">
+          <div>Entrada</div>
+          <div>Analisar</div>
+          <div>Criar documentos</div>
+          <div>Revisar</div>
+          <div>Devolver</div>
+          <div>Concluir</div>
+        </div>
+        <p>
+          Clique em um cartao para editar o processo. Use os filtros para reduzir o kanban a uma secretaria, prioridade, documento ou termo de busca.
+        </p>
+      </section>
+
+      <section id="movimentacao" class="manual-section">
+        <div class="section-heading">
+          <span class="step-badge">06</span>
+          <div>
+            <h2>Movimentacao</h2>
+            <p>Cada mudanca importante deve ser registrada pelo botao <strong>Movimentar</strong>.</p>
+          </div>
+        </div>
+        <ol class="steps">
+          <li>Localize o processo na lista.</li>
+          <li>Clique em <strong>Movimentar</strong>.</li>
+          <li>Informe data, novo status, destino, finalidade e observacao.</li>
+          <li>Salve para atualizar kanban, lista, indicadores e historico.</li>
+        </ol>
+        <div class="tip-box">
+          Quando o status for <strong>Devolver</strong> ou <strong>Concluir</strong>, o sistema registra tambem os dados de saida.
+        </div>
+      </section>
+
+      <section id="historico" class="manual-section">
+        <div class="section-heading">
+          <span class="step-badge">07</span>
+          <div>
+            <h2>Historico</h2>
+            <p>A aba Historico mostra todas as movimentacoes registradas na base local.</p>
+          </div>
+        </div>
+        <div class="timeline">
+          <div><span></span><strong>Entrada registrada</strong><p>Processo chegou na mesa.</p></div>
+          <div><span></span><strong>Movimentacao registrada</strong><p>Processo mudou de etapa ou foi encaminhado.</p></div>
+          <div><span></span><strong>Status alterado</strong><p>Alteracao feita pelo cadastro completo.</p></div>
+        </div>
+      </section>
+
+      <section id="prazos" class="manual-section">
+        <div class="section-heading">
+          <span class="step-badge">08</span>
+          <div>
+            <h2>Prazos e Atrasos</h2>
+            <p>Um processo fica atrasado quando tem prazo vencido e ainda nao esta concluido.</p>
+          </div>
+        </div>
+        <ul class="check-list">
+          <li>Preencha o prazo sempre que existir SLA interno.</li>
+          <li>Revise atrasados no inicio do expediente.</li>
+          <li>Movimente o processo sempre que sair da sua mesa.</li>
+          <li>Conclua processos finalizados para limpar a fila operacional.</li>
+        </ul>
+      </section>
+
+      <section id="backup" class="manual-section">
+        <div class="section-heading">
+          <span class="step-badge">09</span>
+          <div>
+            <h2>Backup e Importacao</h2>
+            <p>Como a V1 salva dados no navegador, backup e uma rotina essencial.</p>
+          </div>
+        </div>
+        <div class="backup-flow">
+          <div>Exportar JSON</div>
+          <span></span>
+          <div>Guardar arquivo</div>
+          <span></span>
+          <div>Importar quando precisar</div>
+        </div>
+        <p>
+          Antes de importar uma base, exporte a base atual. A importacao substitui os dados salvos no navegador.
+        </p>
+      </section>
+
+      <section id="rotina" class="manual-section">
+        <div class="section-heading">
+          <span class="step-badge">10</span>
+          <div>
+            <h2>Rotina Recomendada</h2>
+            <p>Uma rotina simples deixa o controle confiavel sem pesar no dia a dia.</p>
+          </div>
+        </div>
+        <ol class="steps">
+          <li>Abrir o Process Planner no inicio do expediente.</li>
+          <li>Conferir indicadores de atrasados e urgentes.</li>
+          <li>Registrar novas entradas.</li>
+          <li>Movimentar processos que sairam da mesa.</li>
+          <li>Atualizar observacoes e pendencias relevantes.</li>
+          <li>Exportar backup ao fim do dia.</li>
+        </ol>
+      </section>
+
+      <section id="problemas" class="manual-section">
+        <div class="section-heading">
+          <span class="step-badge">11</span>
+          <div>
+            <h2>Solucao de Problemas</h2>
+            <p>Algumas duvidas comuns da primeira versao local.</p>
+          </div>
+        </div>
+        <div class="faq">
+          <details open>
+            <summary>Os dados sumiram</summary>
+            <p>Verifique se voce abriu em outro navegador ou computador. Se tiver backup, use Importar JSON.</p>
+          </details>
+          <details>
+            <summary>O processo nao aparece</summary>
+            <p>Clique em Limpar para remover filtros ativos e exibir todos os processos.</p>
+          </details>
+          <details>
+            <summary>O processo aparece como atrasado</summary>
+            <p>Confira o prazo. Se ja foi finalizado, movimente para Concluir.</p>
+          </details>
+          <details>
+            <summary>Quero usar em equipe</summary>
+            <p>Na V1 cada navegador tem sua propria base. Para equipe, use exportacao/importacao ou evolua para a futura versao web.</p>
+          </details>
+        </div>
+      </section>
+
+      <footer class="manual-footer">
+        <a class="back-button" href="index.html">Voltar ao sistema</a>
+        <p>Process Planner: simples, visual, rapido e operacional.</p>
+      </footer>
+    </article>
+  </main>
+</body>
+</html>
