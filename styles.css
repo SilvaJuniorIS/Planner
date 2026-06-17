@@ -347,6 +347,15 @@ main {
   margin-bottom: 5px;
 }
 
+.process-mini small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  line-height: 1.35;
+}
+
 .process-mini small,
 .process-row p,
 .history-item p {
