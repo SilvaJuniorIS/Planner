@@ -26,6 +26,39 @@ body {
   font-family: "Segoe UI", Arial, sans-serif;
 }
 
+.login-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: #10233f;
+}
+
+.login-card {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px;
+}
+
+.login-brand {
+  margin-bottom: 4px;
+}
+
+.login-brand h1 {
+  color: var(--text);
+}
+
+.login-brand p {
+  color: var(--muted);
+}
+
 button,
 input,
 select,
@@ -257,6 +290,70 @@ main {
   color: var(--muted);
 }
 
+.executive-panel {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
+  gap: 14px;
+  align-items: stretch;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #ffffff 0%, #f7fbff 55%, #eef5f1 100%);
+  box-shadow: var(--shadow);
+}
+
+.eyebrow {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.executive-panel > div > strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 1.45rem;
+  color: var(--ink);
+}
+
+.executive-panel p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.executive-grid,
+.report-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.executive-grid article,
+.report-kpis article {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.executive-grid span,
+.report-kpis span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.executive-grid strong,
+.report-kpis strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--primary);
+  font-size: 1.35rem;
+}
+
 .toolbar {
   margin: 18px 0;
   display: grid;
@@ -319,6 +416,16 @@ main {
 
 .kanban-column::-webkit-scrollbar-track {
   background: transparent;
+}
+
+.kanban-empty {
+  grid-column: 1 / -1;
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
 }
 
 .column-title {
@@ -406,6 +513,81 @@ main {
 
 .list-panel {
   margin-top: 18px;
+}
+
+.reports-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.executive-report,
+.bottleneck-report {
+  display: grid;
+  gap: 14px;
+}
+
+.report-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.report-columns h3,
+.deadline-list h3 {
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+}
+
+.count-list {
+  display: grid;
+  gap: 10px;
+}
+
+.count-row {
+  display: grid;
+  gap: 6px;
+}
+
+.count-row div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.count-row strong {
+  color: var(--ink);
+}
+
+.count-row i {
+  display: block;
+  height: 7px;
+  min-width: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), #24a36b);
+}
+
+.deadline-list {
+  display: grid;
+  gap: 10px;
+}
+
+.deadline-list article {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.deadline-list span,
+.deadline-list small {
+  color: var(--muted);
 }
 
 .process-row {
@@ -521,6 +703,64 @@ dialog::backdrop {
   min-height: auto;
 }
 
+.process-timeline-section {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  padding: 14px;
+}
+
+.process-timeline-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.process-timeline-head h3 {
+  margin: 0 0 4px;
+}
+
+.process-timeline-head p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.process-timeline {
+  display: grid;
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.process-timeline-item {
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--primary);
+  border-radius: var(--radius);
+  background: #fff;
+  padding: 11px 12px;
+}
+
+.process-timeline-item small,
+.process-timeline-item p {
+  color: var(--muted);
+}
+
+.process-timeline-item small,
+.process-timeline-item strong {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.process-timeline-item p {
+  margin: 0;
+}
+
+.process-timeline-empty {
+  background: #fff;
+}
+
 .cota-modal {
   width: min(1180px, calc(100vw - 28px));
 }
@@ -574,6 +814,102 @@ dialog::backdrop {
   min-height: 130px;
 }
 
+.template-editor {
+  min-height: 240px;
+  font-family: Consolas, "Courier New", monospace;
+  line-height: 1.42;
+}
+
+.template-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.template-actions button {
+  flex: 1 1 180px;
+}
+
+.manage-users-list {
+  display: grid;
+  gap: 10px;
+}
+
+.kanban-settings-list {
+  display: grid;
+  gap: 10px;
+}
+
+.kanban-setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  padding: 12px;
+}
+
+.kanban-setting-row label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-weight: 850;
+}
+
+.kanban-setting-row input {
+  width: auto;
+  min-height: auto;
+}
+
+.kanban-setting-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.compact-tip {
+  margin-top: 12px;
+  font-size: 0.9rem;
+}
+
+.manage-user-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  padding: 12px;
+}
+
+.manage-user-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.manage-user-row strong,
+.manage-user-row span,
+.manage-user-row small {
+  display: block;
+}
+
+.manage-user-row span,
+.manage-user-row small {
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 #cotaOutput {
   min-height: 620px;
   font-family: Consolas, "Courier New", monospace;
@@ -599,8 +935,15 @@ dialog::backdrop {
 
   .toolbar,
   .content-grid,
+  .executive-panel,
+  .reports-grid,
   .cota-grid {
     grid-template-columns: 1fr;
+  }
+
+  .executive-grid,
+  .report-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .kanban-column {
@@ -630,6 +973,9 @@ dialog::backdrop {
   }
 
   .metrics,
+  .executive-grid,
+  .report-kpis,
+  .report-columns,
   .two-cols,
   .form-grid {
     grid-template-columns: 1fr;
@@ -638,5 +984,34 @@ dialog::backdrop {
   main,
   .header-main {
     width: min(100% - 20px, 1440px);
+  }
+}
+
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .app-header,
+  .toolbar,
+  .content-grid,
+  .list-panel,
+  .header-actions,
+  .user-actions,
+  dialog,
+  .view-actions {
+    display: none !important;
+  }
+
+  main {
+    width: 100%;
+    margin: 0;
+  }
+
+  .metric,
+  .panel,
+  .executive-panel {
+    box-shadow: none;
+    break-inside: avoid;
   }
 }

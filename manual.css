@@ -38,6 +38,7 @@ code {
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 2px 6px;
+  white-space: nowrap;
 }
 
 .manual-hero {
@@ -226,6 +227,11 @@ code {
   background: var(--soft);
 }
 
+.toc {
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
 .manual-content {
   display: grid;
   gap: 18px;
@@ -324,6 +330,11 @@ h2 {
   margin-top: 16px;
 }
 
+.tip-box p,
+.example-box p {
+  margin-bottom: 0;
+}
+
 .example-box {
   border-left-color: var(--green);
   background: #ecfdf7;
@@ -412,6 +423,11 @@ h2 {
 .timeline strong {
   display: block;
   margin-bottom: 4px;
+}
+
+.info-card p,
+.manual-section p {
+  line-height: 1.55;
 }
 
 .backup-flow {

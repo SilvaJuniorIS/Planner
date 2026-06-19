@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import os
 import hashlib
+import io
 import secrets
+import shutil
 import sqlite3
 import uuid
 from contextlib import contextmanager
@@ -11,13 +13,20 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, status
+from docx import Document
+from fastapi import FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
+PROJECT_ROOT = BASE_DIR.parent
+LEGACY_DATA_DIR = BASE_DIR / "data"
+DATA_DIR = Path(os.getenv("ATLASFLOW_DATA_DIR", PROJECT_ROOT / "data"))
 DB_PATH = Path(os.getenv("ATLASFLOW_DB", DATA_DIR / "atlasflow.sqlite3"))
 
 STATUSES = {"entrada", "analisar", "criar", "revisar", "devolver", "concluido"}
@@ -42,6 +51,11 @@ class User(BaseModel):
     created_at: str
 
 
+class UserPasswordUpdate(BaseModel):
+    admin_user_id: str
+    password: str = ""
+
+
 class AuthLogin(BaseModel):
     user_id: str
     password: str
@@ -53,6 +67,26 @@ class AuthSession(BaseModel):
     department: str = ""
     role: str = ""
     token: str
+
+
+class ImportPayload(BaseModel):
+    users: list[dict[str, Any]] = Field(default_factory=list)
+    processes: list[dict[str, Any]] = Field(default_factory=list)
+    currentUserId: str = ""
+    current_user_id: str = ""
+
+
+class ImportResult(BaseModel):
+    users: int
+    processes: int
+    history: int
+    current_user_id: str = ""
+
+
+class DocumentExport(BaseModel):
+    title: str = "Documento AtlasFlow"
+    text: str = Field(..., min_length=1)
+    filename: str = "documento"
 
 
 class ProcessBase(BaseModel):
@@ -189,6 +223,26 @@ def row_to_history(row: sqlite3.Row) -> dict[str, Any]:
     return dict(row)
 
 
+def data_get(data: dict[str, Any], *names: str, default: Any = "") -> Any:
+    for name in names:
+        if name in data and data[name] is not None:
+            return data[name]
+    return default
+
+
+def as_docs(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            if isinstance(parsed, list):
+                return [str(item) for item in parsed]
+        except json.JSONDecodeError:
+            return [item.strip() for item in value.split(",") if item.strip()]
+    return []
+
+
 def ensure_user(conn: sqlite3.Connection, user_id: str) -> sqlite3.Row:
     row = conn.execute("select * from users where id = ?", (user_id,)).fetchone()
     if not row:
@@ -224,7 +278,144 @@ def insert_history(
     )
 
 
+def upsert_import_user(conn: sqlite3.Connection, item: dict[str, Any]) -> str:
+    user_id = str(data_get(item, "id", default=new_id()))
+    name = str(data_get(item, "name", default="Usuario"))
+    email = str(data_get(item, "email", default=""))
+    department = str(data_get(item, "department", default=""))
+    role = str(data_get(item, "role", default="Operador"))
+    created_at = str(data_get(item, "createdAt", "created_at", default=now()))
+    password_hash_value = str(data_get(item, "password_hash", default=""))
+    password_salt_value = str(data_get(item, "password_salt", default=""))
+
+    conn.execute(
+        """
+        insert into users (id, name, email, department, role, password_hash, password_salt, created_at)
+        values (?, ?, ?, ?, ?, ?, ?, ?)
+        on conflict(id) do update set
+            name = excluded.name,
+            email = excluded.email,
+            department = excluded.department,
+            role = excluded.role
+        """,
+        (user_id, name, email, department, role, password_hash_value, password_salt_value, created_at),
+    )
+    return user_id
+
+
+def upsert_import_process(conn: sqlite3.Connection, item: dict[str, Any], fallback_user_id: str) -> tuple[str, int]:
+    process_id = str(data_get(item, "id", default=new_id()))
+    user_id = str(data_get(item, "userId", "user_id", default=fallback_user_id))
+    if not conn.execute("select 1 from users where id = ?", (user_id,)).fetchone():
+        upsert_import_user(conn, {"id": user_id, "name": "Usuario importado"})
+
+    status_value = str(data_get(item, "status", default="entrada"))
+    priority_value = str(data_get(item, "priority", default="normal"))
+    if status_value not in STATUSES:
+        status_value = "entrada"
+    if priority_value not in PRIORITIES:
+        priority_value = "normal"
+
+    created_at = str(data_get(item, "createdAt", "created_at", default=now()))
+    updated_at = str(data_get(item, "updatedAt", "updated_at", default=created_at))
+    docs_json = json.dumps(as_docs(data_get(item, "docs", default=[])), ensure_ascii=False)
+
+    values = (
+        process_id,
+        user_id,
+        str(data_get(item, "number", default="")),
+        str(data_get(item, "year", default="")),
+        str(data_get(item, "subject", default="Sem objeto")),
+        str(data_get(item, "secretary", default="")),
+        str(data_get(item, "owner", default="")),
+        priority_value,
+        str(data_get(item, "arrivalDate", "arrival_date", default="")),
+        str(data_get(item, "fromSector", "from_sector", default="")),
+        str(data_get(item, "purpose", default="")),
+        str(data_get(item, "deadline", default="")),
+        status_value,
+        str(data_get(item, "exitDate", "exit_date", default="")),
+        str(data_get(item, "toSector", "to_sector", default="")),
+        str(data_get(item, "exitPurpose", "exit_purpose", default="")),
+        docs_json,
+        str(data_get(item, "notes", default="")),
+        created_at,
+        updated_at,
+    )
+    conn.execute(
+        """
+        insert into processes (
+            id, user_id, number, year, subject, secretary, owner, priority, arrival_date,
+            from_sector, purpose, deadline, status, exit_date, to_sector, exit_purpose,
+            docs, notes, created_at, updated_at
+        )
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        on conflict(id) do update set
+            user_id = excluded.user_id,
+            number = excluded.number,
+            year = excluded.year,
+            subject = excluded.subject,
+            secretary = excluded.secretary,
+            owner = excluded.owner,
+            priority = excluded.priority,
+            arrival_date = excluded.arrival_date,
+            from_sector = excluded.from_sector,
+            purpose = excluded.purpose,
+            deadline = excluded.deadline,
+            status = excluded.status,
+            exit_date = excluded.exit_date,
+            to_sector = excluded.to_sector,
+            exit_purpose = excluded.exit_purpose,
+            docs = excluded.docs,
+            notes = excluded.notes,
+            updated_at = excluded.updated_at
+        """,
+        values,
+    )
+
+    conn.execute("delete from history where process_id = ?", (process_id,))
+    history_count = 0
+    history_items = data_get(item, "history", default=[])
+    if isinstance(history_items, list):
+        for event in history_items:
+            if not isinstance(event, dict):
+                continue
+            insert_history(
+                conn,
+                process_id=process_id,
+                user_id=user_id,
+                date=str(data_get(event, "date", default=data_get(item, "arrivalDate", "arrival_date", default=now()[:10]))),
+                action=str(data_get(event, "action", default="Movimentacao registrada")),
+                status_value=str(data_get(event, "status", default=status_value)),
+                to=str(data_get(event, "to", "to_sector", default="")),
+                purpose=str(data_get(event, "purpose", default="")),
+                notes=str(data_get(event, "notes", default="")),
+            )
+            history_count += 1
+
+    if history_count == 0:
+        insert_history(
+            conn,
+            process_id=process_id,
+            user_id=user_id,
+            date=str(data_get(item, "arrivalDate", "arrival_date", default=now()[:10])),
+            action="Entrada importada",
+            status_value=status_value,
+            to=str(data_get(item, "owner", default="")),
+            purpose=str(data_get(item, "purpose", default="Importacao JSON")),
+            notes="Processo importado para a base da API.",
+        )
+        history_count = 1
+
+    return process_id, history_count
+
+
 def init_db() -> None:
+    legacy_db = LEGACY_DATA_DIR / "atlasflow.sqlite3"
+    if not DB_PATH.exists() and legacy_db.exists():
+        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(legacy_db, DB_PATH)
+
     with db() as conn:
         conn.executescript(
             """
@@ -321,6 +512,52 @@ def health() -> dict[str, str]:
     return {"status": "ok", "app": "AtlasFlow API"}
 
 
+def clean_filename(value: str, extension: str) -> str:
+    safe = "".join(char if char.isalnum() or char in ("-", "_") else "-" for char in value.lower())
+    safe = "-".join(part for part in safe.split("-") if part)
+    return f"{safe or 'documento'}.{extension}"
+
+
+@app.post("/api/documents/export/docx")
+def export_docx(payload: DocumentExport) -> StreamingResponse:
+    document = Document()
+    document.add_heading(payload.title, level=1)
+    for block in payload.text.split("\n"):
+      if block.strip():
+          document.add_paragraph(block)
+      else:
+          document.add_paragraph("")
+
+    output = io.BytesIO()
+    document.save(output)
+    output.seek(0)
+    filename = clean_filename(payload.filename, "docx")
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.post("/api/documents/export/pdf")
+def export_pdf(payload: DocumentExport) -> StreamingResponse:
+    output = io.BytesIO()
+    doc = SimpleDocTemplate(output, pagesize=A4, rightMargin=48, leftMargin=48, topMargin=54, bottomMargin=54)
+    styles = getSampleStyleSheet()
+    story: list[Any] = [Paragraph(payload.title, styles["Title"]), Spacer(1, 16)]
+    for block in payload.text.split("\n"):
+        story.append(Paragraph(block.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;") or "&nbsp;", styles["BodyText"]))
+        story.append(Spacer(1, 6))
+    doc.build(story)
+    output.seek(0)
+    filename = clean_filename(payload.filename, "pdf")
+    return StreamingResponse(
+        output,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @app.get("/api/users", response_model=list[User])
 def list_users() -> list[dict[str, Any]]:
     with db() as conn:
@@ -343,6 +580,65 @@ def create_user(payload: UserCreate) -> dict[str, Any]:
 def get_user(user_id: str) -> dict[str, Any]:
     with db() as conn:
         return row_to_user(ensure_user(conn, user_id))
+
+
+@app.patch("/api/users/{user_id}/password", response_model=User)
+def update_user_password(user_id: str, payload: UserPasswordUpdate) -> dict[str, Any]:
+    if payload.admin_user_id != "user-compras":
+        raise HTTPException(status_code=403, detail="Apenas Israel Junior pode alterar senhas")
+
+    salt, hashed = build_password_fields(payload.password)
+    with db() as conn:
+        ensure_user(conn, user_id)
+        conn.execute(
+            "update users set password_hash = ?, password_salt = ? where id = ?",
+            (hashed, salt, user_id),
+        )
+        return row_to_user(conn.execute("select * from users where id = ?", (user_id,)).fetchone())
+
+
+@app.delete("/api/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(user_id: str, admin_user_id: str = Query(...)) -> None:
+    if admin_user_id != "user-compras":
+        raise HTTPException(status_code=403, detail="Apenas Israel Junior pode excluir usuarios")
+    if user_id == "user-compras":
+        raise HTTPException(status_code=409, detail="O usuario administrador nao pode ser excluido")
+
+    with db() as conn:
+        ensure_user(conn, user_id)
+        process_count = conn.execute(
+            "select count(*) as total from processes where user_id = ?",
+            (user_id,),
+        ).fetchone()["total"]
+        if process_count:
+            raise HTTPException(status_code=409, detail="Usuario possui processos vinculados")
+        conn.execute("delete from users where id = ?", (user_id,))
+
+
+@app.post("/api/import", response_model=ImportResult)
+def import_backup(payload: ImportPayload) -> dict[str, Any]:
+    current_user_id = payload.currentUserId or payload.current_user_id
+    with db() as conn:
+        user_ids = [upsert_import_user(conn, item) for item in payload.users if isinstance(item, dict)]
+        fallback_user_id = current_user_id or (user_ids[0] if user_ids else "user-compras")
+        if not conn.execute("select 1 from users where id = ?", (fallback_user_id,)).fetchone():
+            upsert_import_user(conn, {"id": fallback_user_id, "name": "Usuario importado"})
+
+        history_total = 0
+        process_total = 0
+        for item in payload.processes:
+            if not isinstance(item, dict):
+                continue
+            _, history_count = upsert_import_process(conn, item, fallback_user_id)
+            history_total += history_count
+            process_total += 1
+
+        return {
+            "users": len(user_ids),
+            "processes": process_total,
+            "history": history_total,
+            "current_user_id": fallback_user_id,
+        }
 
 
 @app.post("/api/auth/login", response_model=AuthSession)

@@ -1,6 +1,10 @@
 const STORAGE_KEY = "atlasflow_v2";
 const LEGACY_STORAGE_KEY = "process_planner_v1";
 const RETURN_REASONS_KEY = "atlasflow_return_reasons_v1";
+const DOCUMENT_TEMPLATES_KEY = "atlasflow_document_templates_v1";
+const KANBAN_SETTINGS_KEY = "atlasflow_kanban_settings_v1";
+const SESSION_USER_KEY = "atlasflow_session_user";
+const SESSION_TOKEN_KEY = "atlasflow_session_token";
 
 const statuses = [
   ["entrada", "Entrada"],
@@ -23,10 +27,106 @@ const defaultReturnReasons = [
   "Necessidade de saneamento documental antes do prosseguimento.",
 ];
 
+const documentModels = [
+  ["devolucao", "Cota de devolucao"],
+  ["encaminhamento", "Cota de encaminhamento"],
+  ["juridico", "Cota para juridico"],
+  ["saneamento", "Despacho de saneamento"],
+];
+
+const defaultDocumentTemplates = {
+  devolucao: [
+    "{{titulo}}",
+    "",
+    "Processo: {{processo}}",
+    "Objeto: {{objeto}}",
+    "Secretaria/Setor: {{secretaria}}",
+    "Origem: {{origem}}",
+    "Responsavel atual: {{responsavel}}",
+    "Data de chegada: {{chegada}}",
+    "Prazo interno: {{prazo}}",
+    "Documentos relacionados: {{documentos}}",
+    "",
+    "Ao setor {{destino}},",
+    "",
+    "Apos analise preliminar dos autos, devolvemos o presente processo para saneamento das pendencias abaixo:",
+    "",
+    "{{motivos}}",
+    "",
+    "{{observacoes}}",
+    "",
+    "Apos o atendimento das providencias, encaminhar novamente para continuidade da analise.",
+    "",
+    "{{cidade}}, {{data}}.",
+    "",
+    "{{assinatura}}",
+  ].join("\n"),
+  encaminhamento: [
+    "{{titulo}}",
+    "",
+    "Processo: {{processo}}",
+    "Objeto: {{objeto}}",
+    "Secretaria/Setor: {{secretaria}}",
+    "Documentos relacionados: {{documentos}}",
+    "",
+    "Encaminho o presente processo ao setor {{destino}} para ciencia, analise e providencias cabiveis.",
+    "",
+    "Considerando o andamento registrado, solicita-se observar o prazo interno de {{prazo}} e registrar a movimentacao correspondente apos a conclusao da etapa.",
+    "",
+    "{{observacoes}}",
+    "",
+    "{{cidade}}, {{data}}.",
+    "",
+    "{{assinatura}}",
+  ].join("\n"),
+  juridico: [
+    "{{titulo}}",
+    "",
+    "Processo: {{processo}}",
+    "Objeto: {{objeto}}",
+    "Secretaria/Setor: {{secretaria}}",
+    "Origem: {{origem}}",
+    "Documentos relacionados: {{documentos}}",
+    "",
+    "Encaminho os autos ao Juridico Administrativo para analise e manifestacao quanto aos aspectos legais do procedimento.",
+    "",
+    "Pontos de atencao identificados:",
+    "",
+    "{{motivos}}",
+    "",
+    "{{observacoes}}",
+    "",
+    "{{cidade}}, {{data}}.",
+    "",
+    "{{assinatura}}",
+  ].join("\n"),
+  saneamento: [
+    "{{titulo}}",
+    "",
+    "Processo: {{processo}}",
+    "Objeto: {{objeto}}",
+    "Secretaria/Setor: {{secretaria}}",
+    "",
+    "Determino/solicito o saneamento dos autos antes do prosseguimento, com atencao aos seguintes pontos:",
+    "",
+    "{{motivos}}",
+    "",
+    "As providencias deverao ser registradas no historico do processo, com juntada dos documentos atualizados quando cabivel.",
+    "",
+    "{{observacoes}}",
+    "",
+    "{{cidade}}, {{data}}.",
+    "",
+    "{{assinatura}}",
+  ].join("\n"),
+};
+
 const state = {
   users: [],
   currentUserId: "",
   processes: [],
+  apiOnline: false,
+  authToken: "",
   view: "list",
 };
 
@@ -34,6 +134,13 @@ const els = {
   kanban: document.querySelector("#kanban"),
   processList: document.querySelector("#processList"),
   historyList: document.querySelector("#historyList"),
+  operationHealth: document.querySelector("#operationHealth"),
+  operationInsight: document.querySelector("#operationInsight"),
+  metricAvgAge: document.querySelector("#metricAvgAge"),
+  metricDueSoon: document.querySelector("#metricDueSoon"),
+  metricCompletion: document.querySelector("#metricCompletion"),
+  executiveReport: document.querySelector("#executiveReport"),
+  bottleneckReport: document.querySelector("#bottleneckReport"),
   searchInput: document.querySelector("#searchInput"),
   statusFilter: document.querySelector("#statusFilter"),
   priorityFilter: document.querySelector("#priorityFilter"),
@@ -41,6 +148,19 @@ const els = {
   userSelect: document.querySelector("#userSelect"),
   activeUserName: document.querySelector("#activeUserName"),
   activeUserMeta: document.querySelector("#activeUserMeta"),
+  loginScreen: document.querySelector("#loginScreen"),
+  loginForm: document.querySelector("#loginForm"),
+  loginUserSelect: document.querySelector("#loginUserSelect"),
+  loginStatus: document.querySelector("#loginStatus"),
+  refreshDataBtn: document.querySelector("#refreshDataBtn"),
+  manageUsersBtn: document.querySelector("#manageUsersBtn"),
+  newUserBtn: document.querySelector("#newUserBtn"),
+  logoutBtn: document.querySelector("#logoutBtn"),
+  manageUsersDialog: document.querySelector("#manageUsersDialog"),
+  manageUsersList: document.querySelector("#manageUsersList"),
+  kanbanSettingsDialog: document.querySelector("#kanbanSettingsDialog"),
+  kanbanSettingsList: document.querySelector("#kanbanSettingsList"),
+  processTimeline: document.querySelector("#processTimeline"),
   processDialog: document.querySelector("#processDialog"),
   processForm: document.querySelector("#processForm"),
   moveDialog: document.querySelector("#moveDialog"),
@@ -51,6 +171,7 @@ const els = {
   cotaForm: document.querySelector("#cotaForm"),
   cotaReasons: document.querySelector("#cotaReasons"),
   cotaOutput: document.querySelector("#cotaOutput"),
+  documentTypeSelect: document.querySelector("#documentTypeSelect"),
 };
 
 function todayISO() {
@@ -66,6 +187,153 @@ function addDays(days) {
 function uid() {
   if (crypto.randomUUID) return crypto.randomUUID();
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function apiBaseUrl() {
+  const host = window.location.hostname;
+  if (window.location.port === "8124") return `${window.location.protocol}//${host}:8001`;
+  if (!host || host === "localhost" || host === "127.0.0.1") return "http://localhost:8000";
+  return `${window.location.protocol}//${host}:8000`;
+}
+
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${apiBaseUrl()}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: "Erro na API" }));
+    throw new Error(error.detail || "Erro na API");
+  }
+
+  if (response.status === 204) return null;
+  return response.json();
+}
+
+async function apiDownload(path, payload) {
+  const response = await fetch(`${apiBaseUrl()}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: "Erro na API" }));
+    throw new Error(error.detail || "Erro na API");
+  }
+
+  const disposition = response.headers.get("Content-Disposition") || "";
+  const filename = disposition.match(/filename="([^"]+)"/)?.[1] || payload.filename;
+  return { filename, blob: await response.blob() };
+}
+
+function apiUserToLocal(user) {
+  return normalizeUser({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    department: user.department,
+    role: user.role,
+    passwordEnabled: Boolean(user.password_enabled),
+    createdAt: user.created_at,
+  });
+}
+
+function apiHistoryToLocal(event) {
+  return {
+    date: event.date,
+    action: event.action,
+    status: event.status,
+    to: event.to || event.to_sector || "",
+    purpose: event.purpose || "",
+    notes: event.notes || "",
+  };
+}
+
+function apiProcessToLocal(process) {
+  return normalizeProcess({
+    id: process.id,
+    userId: process.user_id,
+    number: process.number,
+    year: process.year,
+    subject: process.subject,
+    secretary: process.secretary,
+    owner: process.owner,
+    priority: process.priority,
+    arrivalDate: process.arrival_date,
+    fromSector: process.from_sector,
+    purpose: process.purpose,
+    deadline: process.deadline,
+    status: process.status,
+    exitDate: process.exit_date,
+    toSector: process.to_sector,
+    exitPurpose: process.exit_purpose,
+    docs: process.docs || [],
+    notes: process.notes,
+    history: (process.history || []).map(apiHistoryToLocal),
+  }, process.user_id);
+}
+
+function localProcessToApi(process) {
+  return {
+    number: process.number || "",
+    year: process.year || "",
+    subject: process.subject || "Sem objeto",
+    secretary: process.secretary || "",
+    owner: process.owner || "",
+    priority: process.priority || "normal",
+    arrival_date: process.arrivalDate || "",
+    from_sector: process.fromSector || "",
+    purpose: process.purpose || "",
+    deadline: process.deadline || "",
+    status: process.status || "entrada",
+    exit_date: process.exitDate || "",
+    to_sector: process.toSector || "",
+    exit_purpose: process.exitPurpose || "",
+    docs: process.docs || [],
+    notes: process.notes || "",
+  };
+}
+
+function storedSessionUserId() {
+  return sessionStorage.getItem(SESSION_USER_KEY) || "";
+}
+
+function storedSessionToken() {
+  return sessionStorage.getItem(SESSION_TOKEN_KEY) || "";
+}
+
+function setSession(userId, token) {
+  state.currentUserId = userId;
+  state.authToken = token;
+  sessionStorage.setItem(SESSION_USER_KEY, userId);
+  sessionStorage.setItem(SESSION_TOKEN_KEY, token);
+}
+
+function clearSession() {
+  state.authToken = "";
+  sessionStorage.removeItem(SESSION_USER_KEY);
+  sessionStorage.removeItem(SESSION_TOKEN_KEY);
+}
+
+function showLogin(message = "") {
+  els.loginStatus.textContent = message || "Nesta fase, usuarios sem senha cadastrada entram com senha em branco.";
+  els.loginScreen.classList.remove("hidden");
+}
+
+function hideLogin() {
+  els.loginScreen.classList.add("hidden");
+}
+
+function renderLoginUsers() {
+  els.loginUserSelect.innerHTML = state.users
+    .map((user) => `<option value="${escapeHTML(user.id)}">${escapeHTML(user.name)}</option>`)
+    .join("");
+  els.loginUserSelect.value = state.currentUserId || state.users[0]?.id || "";
 }
 
 function simplePasswordHash(password) {
@@ -201,7 +469,48 @@ function normalizeProcess(process, userId) {
   };
 }
 
-function load() {
+async function loadApiData() {
+  try {
+    const users = await apiRequest("/api/users");
+    state.users = users.map(apiUserToLocal);
+    const sessionUserId = storedSessionUserId();
+    const sessionToken = storedSessionToken();
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    state.currentUserId = sessionUserId && state.users.some((user) => user.id === sessionUserId)
+      ? sessionUserId
+      : saved.currentUserId && state.users.some((user) => user.id === saved.currentUserId)
+        ? saved.currentUserId
+      : state.users[0]?.id || "";
+    state.authToken = sessionToken;
+    state.apiOnline = true;
+    await loadAllApiProcesses();
+    persist();
+    return true;
+  } catch {
+    state.apiOnline = false;
+    return false;
+  }
+}
+
+async function loadAllApiProcesses() {
+  if (!state.apiOnline || !state.users.length) return;
+  const processGroups = await Promise.all(state.users.map(async (user) => {
+    const processes = await apiRequest(`/api/users/${user.id}/processes`);
+    const detailed = await Promise.all(processes.map((process) => apiRequest(`/api/processes/${process.id}`)));
+    return detailed.map(apiProcessToLocal);
+  }));
+  state.processes = processGroups.flat();
+}
+
+async function loadApiProcesses() {
+  if (!state.apiOnline || !state.currentUserId) return;
+  const processes = await apiRequest(`/api/users/${state.currentUserId}/processes`);
+  const detailed = await Promise.all(processes.map((process) => apiRequest(`/api/processes/${process.id}`)));
+  const otherProcesses = state.processes.filter((process) => process.userId !== state.currentUserId);
+  state.processes = [...otherProcesses, ...detailed.map(apiProcessToLocal)];
+}
+
+function loadLocalData() {
   const raw = localStorage.getItem(STORAGE_KEY);
   if (raw) {
     try {
@@ -241,6 +550,11 @@ function load() {
   resetToSeed();
 }
 
+async function load() {
+  const apiLoaded = await loadApiData();
+  if (!apiLoaded) loadLocalData();
+}
+
 function resetToSeed() {
   state.users = defaultUsers();
   state.currentUserId = state.users[0].id;
@@ -260,6 +574,7 @@ function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
     app: "AtlasFlow",
     version: 2,
+    mode: state.apiOnline ? "api" : "local",
     users: state.users,
     currentUserId: state.currentUserId,
     processes: state.processes,
@@ -294,6 +609,64 @@ function currentUserProcesses() {
   return state.processes.filter((process) => process.userId === state.currentUserId);
 }
 
+function isAdminUser() {
+  return state.currentUserId === "user-compras";
+}
+
+function processCountByUser() {
+  return state.processes.reduce((acc, process) => {
+    acc[process.userId] = (acc[process.userId] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function defaultKanbanSettings() {
+  return {
+    order: statuses.map(([key]) => key),
+    hidden: [],
+  };
+}
+
+function loadAllKanbanSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(KANBAN_SETTINGS_KEY) || "{}");
+    return saved && typeof saved === "object" ? saved : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizeKanbanSettings(settings = {}) {
+  const validKeys = statuses.map(([key]) => key);
+  const order = Array.isArray(settings.order)
+    ? [...settings.order.filter((key) => validKeys.includes(key)), ...validKeys.filter((key) => !settings.order.includes(key))]
+    : validKeys;
+  const hidden = Array.isArray(settings.hidden)
+    ? settings.hidden.filter((key) => validKeys.includes(key))
+    : [];
+  return { order, hidden };
+}
+
+function currentKanbanSettings() {
+  const allSettings = loadAllKanbanSettings();
+  return normalizeKanbanSettings(allSettings[state.currentUserId] || defaultKanbanSettings());
+}
+
+function saveCurrentKanbanSettings(settings) {
+  const allSettings = loadAllKanbanSettings();
+  allSettings[state.currentUserId] = normalizeKanbanSettings(settings);
+  localStorage.setItem(KANBAN_SETTINGS_KEY, JSON.stringify(allSettings));
+}
+
+function visibleKanbanStatuses() {
+  const settings = currentKanbanSettings();
+  const statusMap = Object.fromEntries(statuses);
+  return settings.order
+    .filter((key) => !settings.hidden.includes(key))
+    .map((key) => [key, statusMap[key]])
+    .filter(([, label]) => Boolean(label));
+}
+
 function loadReturnReasons() {
   try {
     const saved = JSON.parse(localStorage.getItem(RETURN_REASONS_KEY) || "[]");
@@ -310,8 +683,77 @@ function saveReturnReasons(reasons) {
   localStorage.setItem(RETURN_REASONS_KEY, JSON.stringify(clean.length ? clean : defaultReturnReasons));
 }
 
+function loadDocumentTemplates() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DOCUMENT_TEMPLATES_KEY) || "{}");
+    return { ...defaultDocumentTemplates, ...(saved && typeof saved === "object" ? saved : {}) };
+  } catch {
+    return { ...defaultDocumentTemplates };
+  }
+}
+
+function saveDocumentTemplate(type, template) {
+  const templates = loadDocumentTemplates();
+  templates[type] = template.trim() || defaultDocumentTemplates[type] || "";
+  localStorage.setItem(DOCUMENT_TEMPLATES_KEY, JSON.stringify(templates));
+}
+
+function resetDocumentTemplate(type) {
+  const templates = loadDocumentTemplates();
+  templates[type] = defaultDocumentTemplates[type] || "";
+  localStorage.setItem(DOCUMENT_TEMPLATES_KEY, JSON.stringify(templates));
+  return templates[type];
+}
+
 function isLate(process) {
   return process.deadline && process.status !== "concluido" && process.deadline < todayISO();
+}
+
+function daysBetween(start, end = todayISO()) {
+  if (!start) return 0;
+  const startDate = new Date(`${start}T00:00:00`);
+  const endDate = new Date(`${end}T00:00:00`);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return 0;
+  return Math.max(0, Math.round((endDate - startDate) / 86400000));
+}
+
+function daysUntil(date) {
+  if (!date) return null;
+  const target = new Date(`${date}T00:00:00`);
+  const current = new Date(`${todayISO()}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return null;
+  return Math.round((target - current) / 86400000);
+}
+
+function groupCount(items, getter) {
+  return items.reduce((acc, item) => {
+    const key = getter(item) || "Nao informado";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function sortedCountEntries(counts) {
+  return Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+function percent(part, total) {
+  if (!total) return "0%";
+  return `${Math.round((part / total) * 100)}%`;
+}
+
+function normalizeReportLabel(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "Nao informado";
+  const cleaned = raw
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\bSECRETARIAD E\b/gi, "SECRETARIA DE")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned
+    .toLowerCase()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function filteredProcesses() {
@@ -342,22 +784,136 @@ function filteredProcesses() {
 }
 
 function renderUsers() {
+  const counts = processCountByUser();
+
   els.userSelect.innerHTML = state.users
-    .map((user) => `<option value="${escapeHTML(user.id)}">${escapeHTML(user.name)}</option>`)
+    .map((user) => {
+      const count = counts[user.id] || 0;
+      return `<option value="${escapeHTML(user.id)}">${escapeHTML(user.name)} (${count})</option>`;
+    })
     .join("");
   els.userSelect.value = state.currentUserId;
 
   const user = currentUser();
   els.activeUserName.textContent = user?.name || "Usuario";
-  els.activeUserMeta.textContent = [user?.department, user?.role, user?.email].filter(Boolean).join(" | ") || "Base individual";
+  const mode = state.apiOnline ? `API em ${apiBaseUrl()}` : "LocalStorage";
+  const currentCount = currentUserProcesses().length;
+  const totalCount = state.processes.length;
+  els.activeUserMeta.textContent = [
+    [user?.department, user?.role, user?.email].filter(Boolean).join(" | "),
+    `${currentCount} processo(s) deste usuario`,
+    `${totalCount} no total carregado`,
+    mode,
+  ].filter(Boolean).join(" | ");
+  els.manageUsersBtn.classList.toggle("hidden", !isAdminUser());
+  els.newUserBtn.classList.toggle("hidden", !isAdminUser());
+  els.userSelect.disabled = state.apiOnline && Boolean(state.authToken) && !isAdminUser();
+  els.logoutBtn.classList.toggle("hidden", !state.apiOnline);
 }
 
 function renderMetrics() {
   const processes = currentUserProcesses();
-  document.querySelector("#metricOpen").textContent = processes.filter((p) => p.status !== "concluido").length;
-  document.querySelector("#metricLate").textContent = processes.filter(isLate).length;
-  document.querySelector("#metricUrgent").textContent = processes.filter((p) => p.priority === "urgente" && p.status !== "concluido").length;
-  document.querySelector("#metricDone").textContent = processes.filter((p) => p.status === "concluido").length;
+  const open = processes.filter((p) => p.status !== "concluido");
+  const late = processes.filter(isLate);
+  const urgent = processes.filter((p) => p.priority === "urgente" && p.status !== "concluido");
+  const done = processes.filter((p) => p.status === "concluido");
+  const dueSoon = open.filter((p) => {
+    const days = daysUntil(p.deadline);
+    return days !== null && days >= 0 && days <= 7;
+  });
+  const avgAge = open.length
+    ? Math.round(open.reduce((sum, process) => sum + daysBetween(process.arrivalDate || process.createdAt?.slice(0, 10)), 0) / open.length)
+    : 0;
+  const lateRate = open.length ? late.length / open.length : 0;
+
+  document.querySelector("#metricOpen").textContent = open.length;
+  document.querySelector("#metricLate").textContent = late.length;
+  document.querySelector("#metricUrgent").textContent = urgent.length;
+  document.querySelector("#metricDone").textContent = done.length;
+  els.metricAvgAge.textContent = `${avgAge} dia${avgAge === 1 ? "" : "s"}`;
+  els.metricDueSoon.textContent = dueSoon.length;
+  els.metricCompletion.textContent = percent(done.length, processes.length);
+
+  if (!processes.length) {
+    els.operationHealth.textContent = "Sem dados suficientes";
+    els.operationInsight.textContent = "Cadastre processos para gerar leitura gerencial da mesa.";
+  } else if (lateRate >= 0.35 || late.length >= 5) {
+    els.operationHealth.textContent = "Atencao critica";
+    els.operationInsight.textContent = `${late.length} processo(s) atrasado(s). Priorize prazos vencidos e redistribua gargalos.`;
+  } else if (late.length || dueSoon.length >= 3) {
+    els.operationHealth.textContent = "Monitorar prazos";
+    els.operationInsight.textContent = `${dueSoon.length} processo(s) vencem em ate 7 dias. Acompanhe a fila diariamente.`;
+  } else {
+    els.operationHealth.textContent = "Operacao controlada";
+    els.operationInsight.textContent = "Nao ha sinal critico de atraso na mesa atual.";
+  }
+}
+
+function renderReports() {
+  const processes = currentUserProcesses();
+  const open = processes.filter((p) => p.status !== "concluido");
+  const late = processes.filter(isLate);
+  const done = processes.filter((p) => p.status === "concluido");
+  const dueSoon = open
+    .map((process) => ({ process, days: daysUntil(process.deadline) }))
+    .filter((item) => item.days !== null && item.days >= 0 && item.days <= 7)
+    .sort((a, b) => a.days - b.days);
+  const byStatus = sortedCountEntries(groupCount(processes, (process) => labelForStatus(process.status)));
+  const bySecretary = sortedCountEntries(groupCount(processes, (process) => normalizeReportLabel(process.secretary)));
+
+  els.executiveReport.innerHTML = `
+    <div class="report-kpis">
+      <article><span>Total</span><strong>${processes.length}</strong></article>
+      <article><span>Em aberto</span><strong>${open.length}</strong></article>
+      <article><span>Atrasados</span><strong>${late.length}</strong></article>
+      <article><span>Conclusao</span><strong>${percent(done.length, processes.length)}</strong></article>
+    </div>
+    <div class="report-columns">
+      <div>
+        <h3>Por status</h3>
+        ${renderCountList(byStatus)}
+      </div>
+      <div>
+        <h3>Por secretaria</h3>
+        ${renderCountList(bySecretary.slice(0, 6))}
+      </div>
+    </div>
+  `;
+
+  els.bottleneckReport.innerHTML = `
+    <div class="deadline-list">
+      <h3>Proximos prazos</h3>
+      ${dueSoon.length ? dueSoon.slice(0, 5).map(({ process, days }) => `
+        <article>
+          <strong>${escapeHTML(process.number || "Sem numero")}</strong>
+          <span>${escapeHTML(process.subject)}</span>
+          <small>${days === 0 ? "Vence hoje" : `Vence em ${days} dia${days === 1 ? "" : "s"}`}</small>
+        </article>
+      `).join("") : '<div class="empty">Nenhum vencimento nos proximos 7 dias.</div>'}
+    </div>
+    <div class="deadline-list">
+      <h3>Gargalos</h3>
+      ${renderCountList(sortedCountEntries(groupCount(open, (process) => labelForStatus(process.status))).slice(0, 6))}
+    </div>
+  `;
+}
+
+function renderCountList(entries) {
+  if (!entries.length) return '<div class="empty">Sem dados para exibir.</div>';
+  const max = Math.max(...entries.map(([, count]) => count), 1);
+  return `
+    <div class="count-list">
+      ${entries.map(([label, count]) => `
+        <div class="count-row">
+          <div>
+            <span>${escapeHTML(label)}</span>
+            <strong>${count}</strong>
+          </div>
+          <i style="width: ${Math.max(8, Math.round((count / max) * 100))}%"></i>
+        </div>
+      `).join("")}
+    </div>
+  `;
 }
 
 function processTags(process) {
@@ -372,7 +928,12 @@ function processTags(process) {
 
 function renderKanban() {
   const filtered = filteredProcesses();
-  els.kanban.innerHTML = statuses.map(([key, label]) => {
+  const visibleStatuses = visibleKanbanStatuses();
+  if (!visibleStatuses.length) {
+    els.kanban.innerHTML = '<div class="empty kanban-empty">Todas as colunas estao ocultas. Use Personalizar para restaurar o Kanban.</div>';
+    return;
+  }
+  els.kanban.innerHTML = visibleStatuses.map(([key, label]) => {
     const items = filtered.filter((process) => process.status === key);
     return `
       <section class="kanban-column">
@@ -396,7 +957,13 @@ function renderList() {
   const filtered = filteredProcesses();
 
   if (!filtered.length) {
-    els.processList.innerHTML = '<div class="empty">Nenhum processo encontrado para este usuario e filtros atuais.</div>';
+    const user = currentUser();
+    els.processList.innerHTML = `
+      <div class="empty">
+        Nenhum processo encontrado para ${escapeHTML(user?.name || "este usuario")}.
+        ${state.processes.length ? "Os processos de outros usuarios continuam salvos; selecione outro usuario para visualiza-los." : "Cadastre a primeira entrada para iniciar a base."}
+      </div>
+    `;
     return;
   }
 
@@ -441,6 +1008,7 @@ function renderHistory() {
 function renderAll() {
   renderUsers();
   renderMetrics();
+  renderReports();
   renderKanban();
   renderList();
   renderHistory();
@@ -450,8 +1018,27 @@ function fillSelects() {
   const statusOptions = ['<option value="">Todos</option>', ...statuses.map(([key, label]) => `<option value="${key}">${label}</option>`)];
   els.statusFilter.innerHTML = statusOptions.join("");
   els.docFilter.innerHTML = ['<option value="">Todos</option>', ...docs.map((doc) => `<option>${doc}</option>`)].join("");
+  els.documentTypeSelect.innerHTML = documentModels.map(([key, label]) => `<option value="${key}">${label}</option>`).join("");
   els.processForm.elements.status.innerHTML = statuses.map(([key, label]) => `<option value="${key}">${label}</option>`).join("");
   els.moveForm.elements.status.innerHTML = statuses.map(([key, label]) => `<option value="${key}">${label}</option>`).join("");
+}
+
+function renderProcessTimeline(process) {
+  const history = [...(process?.history || [])]
+    .sort((a, b) => `${b.date || ""}`.localeCompare(`${a.date || ""}`));
+
+  if (!history.length) {
+    els.processTimeline.innerHTML = '<div class="empty process-timeline-empty">Nenhuma movimentacao registrada para este processo.</div>';
+    return;
+  }
+
+  els.processTimeline.innerHTML = history.map((event) => `
+    <article class="process-timeline-item">
+      <small>${formatDate(event.date)} | ${escapeHTML(labelForStatus(event.status || process.status))}</small>
+      <strong>${escapeHTML(event.action || "Movimentacao registrada")}</strong>
+      <p>${event.to ? `Destino: ${escapeHTML(event.to)}. ` : ""}${event.purpose ? `Finalidade: ${escapeHTML(event.purpose)}. ` : ""}${escapeHTML(event.notes || "")}</p>
+    </article>
+  `).join("");
 }
 
 function openProcessDialog(process = null) {
@@ -475,6 +1062,7 @@ function openProcessDialog(process = null) {
     });
   }
 
+  renderProcessTimeline(process);
   els.processDialog.showModal();
 }
 
@@ -531,16 +1119,30 @@ function formDataToProcess(form, existing = null) {
   return process;
 }
 
-function saveProcess(event) {
+async function saveProcess(event) {
   event.preventDefault();
   const id = els.processForm.elements.id.value;
   const existing = state.processes.find((process) => process.id === id && process.userId === state.currentUserId);
   const process = formDataToProcess(els.processForm, existing);
 
-  if (existing) {
-    state.processes = state.processes.map((item) => item.id === process.id ? process : item);
-  } else {
-    state.processes.push(process);
+  try {
+    if (state.apiOnline) {
+      const payload = localProcessToApi(process);
+      const saved = existing
+        ? await apiRequest(`/api/processes/${process.id}`, { method: "PUT", body: JSON.stringify(payload) })
+        : await apiRequest(`/api/users/${state.currentUserId}/processes`, { method: "POST", body: JSON.stringify(payload) });
+      const localSaved = apiProcessToLocal(saved);
+      state.processes = existing
+        ? state.processes.map((item) => item.id === localSaved.id ? localSaved : item)
+        : [...state.processes, localSaved];
+    } else if (existing) {
+      state.processes = state.processes.map((item) => item.id === process.id ? process : item);
+    } else {
+      state.processes.push(process);
+    }
+  } catch (error) {
+    alert(`Nao foi possivel salvar na API: ${error.message}`);
+    return;
   }
 
   persist();
@@ -565,13 +1167,20 @@ function openCotaDialog(id) {
 
   els.cotaForm.reset();
   els.cotaForm.elements.id.value = id;
+  els.cotaForm.elements.documentType.value = "devolucao";
   els.cotaForm.elements.destination.value = process.fromSector || process.secretary || "";
   els.cotaForm.elements.date.value = todayISO();
   els.cotaForm.elements.signer.value = currentUser()?.name || process.owner || "";
   els.cotaForm.elements.reasonsText.value = loadReturnReasons().join("\n");
+  loadSelectedTemplate();
   renderCotaReasons();
   updateCotaPreview();
   els.cotaDialog.showModal();
+}
+
+function loadSelectedTemplate() {
+  const type = els.cotaForm.elements.documentType.value || "devolucao";
+  els.cotaForm.elements.templateText.value = loadDocumentTemplates()[type] || defaultDocumentTemplates[type] || "";
 }
 
 function renderCotaReasons() {
@@ -591,7 +1200,11 @@ function selectedCotaReasons() {
     .filter(Boolean);
 }
 
-function buildCotaText(process, selectedReasons, data) {
+function documentTitle(type) {
+  return (documentModels.find(([key]) => key === type)?.[1] || "Documento padronizado").toUpperCase();
+}
+
+function documentContext(process, selectedReasons, data) {
   const processNumber = [process.number, process.year].filter(Boolean).join("/");
   const docsList = (process.docs || []).length ? process.docs.join(", ") : "Nao informado";
   const deadline = process.deadline ? formatDate(process.deadline) : "Sem prazo informado";
@@ -600,33 +1213,44 @@ function buildCotaText(process, selectedReasons, data) {
     ? selectedReasons.map((reason, index) => `${index + 1}. ${reason}`).join("\n")
     : "1. Necessidade de saneamento documental antes do prosseguimento.";
 
-  return [
-    "COTA DE DEVOLUCAO",
-    "",
-    `Processo: ${processNumber || "Nao informado"}`,
-    `Objeto: ${process.subject || "Nao informado"}`,
-    `Secretaria/Setor: ${process.secretary || "Nao informado"}`,
-    `Origem: ${process.fromSector || "Nao informado"}`,
-    `Responsavel atual: ${process.owner || currentUser()?.name || "Nao informado"}`,
-    `Data de chegada: ${arrival}`,
-    `Prazo interno: ${deadline}`,
-    `Documentos relacionados: ${docsList}`,
-    "",
-    `Ao setor ${data.destination || "competente"},`,
-    "",
-    "Encaminho o presente processo para devolucao/saneamento, considerando a necessidade de ajustes antes do prosseguimento da instrucao processual.",
-    "",
-    "Motivos da devolucao:",
-    reasonsText,
-    "",
-    data.extraNotes ? `Observacoes complementares:\n${data.extraNotes}` : "",
-    "",
-    "Apos as correcoes, o processo podera retornar para nova analise e continuidade do fluxo administrativo.",
-    "",
-    `${data.city || "Local"}, ${formatDate(data.date || todayISO())}.`,
-    "",
-    data.signer || currentUser()?.name || "Responsavel",
-  ].filter((line, index, lines) => line !== "" || lines[index - 1] !== "").join("\n");
+  return {
+    titulo: documentTitle(data.type),
+    processo: processNumber || "Nao informado",
+    numero: process.number || "Nao informado",
+    ano: process.year || "Nao informado",
+    objeto: process.subject || "Nao informado",
+    secretaria: process.secretary || "Nao informado",
+    origem: process.fromSector || "Nao informado",
+    destino: data.destination || "competente",
+    responsavel: process.owner || currentUser()?.name || "Nao informado",
+    chegada: arrival,
+    prazo: deadline,
+    status: labelForStatus(process.status),
+    prioridade: process.priority === "urgente" ? "Urgente" : "Normal",
+    documentos: docsList,
+    motivos: reasonsText,
+    observacoes: data.extraNotes ? `Observacoes complementares:\n${data.extraNotes}` : "",
+    cidade: data.city || "Local",
+    data: formatDate(data.date || todayISO()),
+    assinatura: data.signer || currentUser()?.name || "Responsavel",
+  };
+}
+
+function renderTemplate(template, context) {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => context[key] ?? "");
+}
+
+function compactDocumentText(text) {
+  return text
+    .split("\n")
+    .filter((line, index, lines) => line.trim() || lines[index - 1]?.trim())
+    .join("\n")
+    .trim();
+}
+
+function buildCotaText(process, selectedReasons, data) {
+  const template = els.cotaForm.elements.templateText.value || defaultDocumentTemplates[data.type] || "";
+  return compactDocumentText(renderTemplate(template, documentContext(process, selectedReasons, data)));
 }
 
 function updateCotaPreview() {
@@ -635,6 +1259,7 @@ function updateCotaPreview() {
   if (!process) return;
 
   const data = {
+    type: els.cotaForm.elements.documentType.value || "devolucao",
     destination: els.cotaForm.elements.destination.value.trim(),
     city: els.cotaForm.elements.city.value.trim(),
     date: els.cotaForm.elements.date.value || todayISO(),
@@ -649,19 +1274,377 @@ async function copyCotaText() {
   els.cotaOutput.setSelectionRange(0, els.cotaOutput.value.length);
   try {
     await navigator.clipboard.writeText(els.cotaOutput.value);
-    alert("Cota copiada para a area de transferencia.");
+    alert("Texto copiado para a area de transferencia.");
   } catch {
     document.execCommand("copy");
-    alert("Cota copiada.");
+    alert("Texto copiado.");
   }
 }
 
-function saveMovement(event) {
+function documentFileName(extension) {
+  const id = els.cotaForm.elements.id.value;
+  const process = state.processes.find((item) => item.id === id && item.userId === state.currentUserId);
+  const type = els.cotaForm.elements.documentType.value || "documento";
+  const number = (process?.number || "sem-numero").replace(/[^a-z0-9]+/gi, "-");
+  return `atlasflow-${type}-${number}-${todayISO()}.${extension}`;
+}
+
+function downloadBlob(filename, content, type) {
+  const blob = new Blob([content], { type });
+  saveBlob(filename, blob);
+}
+
+function saveBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function documentExportPayload(extension) {
+  const title = documentTitle(els.cotaForm.elements.documentType.value || "documento");
+  return {
+    title,
+    text: els.cotaOutput.value,
+    filename: documentFileName(extension).replace(/\.[^.]+$/, ""),
+  };
+}
+
+async function exportDocumentWord() {
+  if (state.apiOnline) {
+    try {
+      const result = await apiDownload("/api/documents/export/docx", documentExportPayload("docx"));
+      saveBlob(result.filename, result.blob);
+      return;
+    } catch (error) {
+      alert(`Nao foi possivel gerar DOCX pela API: ${error.message}. Gerando arquivo Word compativel.`);
+    }
+  }
+
+  const title = documentTitle(els.cotaForm.elements.documentType.value || "documento");
+  const body = escapeHTML(els.cotaOutput.value).replace(/\n/g, "<br>");
+  const html = `
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>${escapeHTML(title)}</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.45; color: #111827; }
+          .document { max-width: 760px; margin: 0 auto; }
+        </style>
+      </head>
+      <body><div class="document">${body}</div></body>
+    </html>
+  `;
+  downloadBlob(documentFileName("doc"), html, "application/msword;charset=utf-8");
+}
+
+async function exportDocumentPdf() {
+  if (state.apiOnline) {
+    try {
+      const result = await apiDownload("/api/documents/export/pdf", documentExportPayload("pdf"));
+      saveBlob(result.filename, result.blob);
+      return;
+    } catch (error) {
+      alert(`Nao foi possivel gerar PDF pela API: ${error.message}. Abrindo impressao do navegador.`);
+    }
+  }
+
+  const title = documentTitle(els.cotaForm.elements.documentType.value || "documento");
+  const printWindow = window.open("", "_blank", "width=900,height=700");
+  if (!printWindow) {
+    alert("Permita pop-ups para abrir a impressao em PDF.");
+    return;
+  }
+  printWindow.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <title>${escapeHTML(title)}</title>
+        <style>
+          @page { margin: 22mm; }
+          body { font-family: Arial, sans-serif; line-height: 1.45; color: #111827; white-space: pre-wrap; }
+        </style>
+      </head>
+      <body>${escapeHTML(els.cotaOutput.value)}</body>
+    </html>
+  `);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.print();
+}
+
+function renderManageUsers() {
+  const counts = processCountByUser();
+  els.manageUsersList.innerHTML = state.users.map((user) => {
+    const count = counts[user.id] || 0;
+    const isSelf = user.id === state.currentUserId;
+    const canDelete = isAdminUser() && !isSelf && count === 0;
+    const reason = isSelf
+      ? "Usuario ativo"
+      : count > 0
+        ? `${count} processo(s) vinculado(s)`
+        : "Sem processos";
+
+    return `
+      <article class="manage-user-row">
+        <div>
+          <strong>${escapeHTML(user.name)}</strong>
+          <span>${escapeHTML([user.department, user.role, user.email].filter(Boolean).join(" | ") || "Sem detalhes")}</span>
+          <small>${user.passwordEnabled ? "Senha ativa" : "Sem senha definida"}</small>
+          <small>${escapeHTML(reason)}</small>
+        </div>
+        <div class="manage-user-actions">
+          <button type="button" data-password-user="${escapeHTML(user.id)}">Definir senha</button>
+          <button type="button" data-clear-password-user="${escapeHTML(user.id)}" ${user.passwordEnabled ? "" : "disabled"}>Limpar senha</button>
+          <button type="button" class="danger" data-delete-user="${escapeHTML(user.id)}" ${canDelete ? "" : "disabled"}>Excluir</button>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function renderKanbanSettings() {
+  const settings = currentKanbanSettings();
+  const statusMap = Object.fromEntries(statuses);
+  els.kanbanSettingsList.innerHTML = settings.order.map((key, index) => {
+    const hidden = settings.hidden.includes(key);
+    return `
+      <article class="kanban-setting-row">
+        <label>
+          <input type="checkbox" data-kanban-visible="${escapeHTML(key)}" ${hidden ? "" : "checked"} />
+          <span>${escapeHTML(statusMap[key])}</span>
+        </label>
+        <div class="kanban-setting-actions">
+          <button type="button" data-kanban-up="${escapeHTML(key)}" ${index === 0 ? "disabled" : ""}>Subir</button>
+          <button type="button" data-kanban-down="${escapeHTML(key)}" ${index === settings.order.length - 1 ? "disabled" : ""}>Descer</button>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function openKanbanSettingsDialog() {
+  renderKanbanSettings();
+  els.kanbanSettingsDialog.showModal();
+}
+
+function moveKanbanColumn(key, direction) {
+  const settings = currentKanbanSettings();
+  const index = settings.order.indexOf(key);
+  const target = index + direction;
+  if (index < 0 || target < 0 || target >= settings.order.length) return;
+  const nextOrder = [...settings.order];
+  [nextOrder[index], nextOrder[target]] = [nextOrder[target], nextOrder[index]];
+  saveCurrentKanbanSettings({ ...settings, order: nextOrder });
+  renderKanbanSettings();
+  renderKanban();
+}
+
+function toggleKanbanColumn(key, visible) {
+  const settings = currentKanbanSettings();
+  const hidden = visible
+    ? settings.hidden.filter((item) => item !== key)
+    : [...new Set([...settings.hidden, key])];
+  saveCurrentKanbanSettings({ ...settings, hidden });
+  renderKanbanSettings();
+  renderKanban();
+}
+
+function resetKanbanSettings() {
+  saveCurrentKanbanSettings(defaultKanbanSettings());
+  renderKanbanSettings();
+  renderKanban();
+}
+
+function openManageUsersDialog() {
+  if (!isAdminUser()) {
+    alert("Apenas Israel Junior pode gerenciar usuarios.");
+    return;
+  }
+  renderManageUsers();
+  els.manageUsersDialog.showModal();
+}
+
+async function deleteUser(userId) {
+  if (!isAdminUser()) {
+    alert("Apenas Israel Junior pode excluir usuarios.");
+    return;
+  }
+
+  const user = state.users.find((item) => item.id === userId);
+  if (!user) return;
+  const count = processCountByUser()[userId] || 0;
+  if (userId === state.currentUserId) {
+    alert("Nao e possivel excluir o usuario ativo.");
+    return;
+  }
+  if (count > 0) {
+    alert("Nao e possivel excluir usuario com processos vinculados.");
+    return;
+  }
+  if (!confirm(`Excluir o usuario ${user.name}?`)) return;
+
+  if (state.apiOnline) {
+    try {
+      await apiRequest(`/api/users/${userId}?admin_user_id=${encodeURIComponent(state.currentUserId)}`, { method: "DELETE" });
+      const users = await apiRequest("/api/users");
+      state.users = users.map(apiUserToLocal);
+      await loadAllApiProcesses();
+    } catch (error) {
+      alert(`Nao foi possivel excluir usuario: ${error.message}`);
+      return;
+    }
+  } else {
+    state.users = state.users.filter((item) => item.id !== userId);
+  }
+
+  persist();
+  renderAll();
+  renderManageUsers();
+}
+
+async function updateUserPassword(userId, password) {
+  if (!isAdminUser()) {
+    alert("Apenas Israel Junior pode alterar senhas.");
+    return;
+  }
+
+  const user = state.users.find((item) => item.id === userId);
+  if (!user) return;
+
+  if (state.apiOnline) {
+    try {
+      const saved = await apiRequest(`/api/users/${userId}/password`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          admin_user_id: state.currentUserId,
+          password,
+        }),
+      });
+      state.users = state.users.map((item) => (item.id === userId ? apiUserToLocal(saved) : item));
+    } catch (error) {
+      alert(`Nao foi possivel alterar senha: ${error.message}`);
+      return;
+    }
+  } else {
+    state.users = state.users.map((item) => (
+      item.id === userId
+        ? {
+            ...item,
+            passwordEnabled: Boolean(password),
+            passwordHash: simplePasswordHash(password),
+          }
+        : item
+    ));
+  }
+
+  persist();
+  renderAll();
+  renderManageUsers();
+  alert(password ? `Senha atualizada para ${user.name}.` : `Senha removida de ${user.name}.`);
+}
+
+async function setUserPassword(userId) {
+  const user = state.users.find((item) => item.id === userId);
+  if (!user) return;
+  const password = prompt(`Nova senha para ${user.name}:`);
+  if (password === null) return;
+  await updateUserPassword(userId, password);
+}
+
+async function clearUserPassword(userId) {
+  const user = state.users.find((item) => item.id === userId);
+  if (!user) return;
+  if (!confirm(`Remover a senha de ${user.name}?`)) return;
+  await updateUserPassword(userId, "");
+}
+
+async function refreshData() {
+  if (state.apiOnline) {
+    try {
+      const users = await apiRequest("/api/users");
+      state.users = users.map(apiUserToLocal);
+      await loadAllApiProcesses();
+      ensureCurrentUser();
+      persist();
+    } catch (error) {
+      alert(`Nao foi possivel atualizar pela API: ${error.message}`);
+      return;
+    }
+  } else {
+    loadLocalData();
+  }
+  renderAll();
+}
+
+async function login(event) {
+  event.preventDefault();
+  if (!state.apiOnline) {
+    hideLogin();
+    return;
+  }
+
+  const data = new FormData(els.loginForm);
+  const userId = data.get("userId");
+  const password = data.get("password");
+
+  try {
+    const session = await apiRequest("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ user_id: userId, password }),
+    });
+    setSession(session.user_id, session.token);
+    await loadAllApiProcesses();
+    persist();
+    hideLogin();
+    renderAll();
+  } catch (error) {
+    showLogin(`Nao foi possivel entrar: ${error.message}`);
+  }
+}
+
+async function logout() {
+  clearSession();
+  renderLoginUsers();
+  showLogin("Sessao encerrada. Entre novamente para acessar sua mesa.");
+  renderAll();
+}
+
+async function saveMovement(event) {
   event.preventDefault();
   const data = new FormData(els.moveForm);
   const id = data.get("id");
   const process = state.processes.find((item) => item.id === id && item.userId === state.currentUserId);
   if (!process) return;
+
+  if (state.apiOnline) {
+    try {
+      const saved = await apiRequest(`/api/processes/${id}/movements`, {
+        method: "POST",
+        body: JSON.stringify({
+          date: data.get("date") || todayISO(),
+          status: data.get("status"),
+          to: data.get("to").trim(),
+          purpose: data.get("purpose").trim(),
+          notes: data.get("notes").trim(),
+        }),
+      });
+      const localSaved = apiProcessToLocal(saved);
+      state.processes = state.processes.map((item) => item.id === localSaved.id ? localSaved : item);
+      persist();
+      closeDialog(els.moveDialog);
+      renderAll();
+      return;
+    } catch (error) {
+      alert(`Nao foi possivel movimentar na API: ${error.message}`);
+      return;
+    }
+  }
 
   process.status = data.get("status");
   process.history = process.history || [];
@@ -685,17 +1668,26 @@ function saveMovement(event) {
   renderAll();
 }
 
-function deleteProcess(id) {
+async function deleteProcess(id) {
   const process = state.processes.find((item) => item.id === id && item.userId === state.currentUserId);
   if (!process) return;
   if (!confirm(`Excluir o processo ${process.number || "sem numero"}?`)) return;
+
+  if (state.apiOnline) {
+    try {
+      await apiRequest(`/api/processes/${id}`, { method: "DELETE" });
+    } catch (error) {
+      alert(`Nao foi possivel excluir na API: ${error.message}`);
+      return;
+    }
+  }
 
   state.processes = state.processes.filter((item) => item.id !== id);
   persist();
   renderAll();
 }
 
-function addQuickProcess(event) {
+async function addQuickProcess(event) {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
   const number = data.get("number").trim();
@@ -738,13 +1730,27 @@ function addQuickProcess(event) {
     ],
   };
 
-  state.processes.push(process);
+  if (state.apiOnline) {
+    try {
+      const saved = await apiRequest(`/api/users/${state.currentUserId}/processes`, {
+        method: "POST",
+        body: JSON.stringify(localProcessToApi(process)),
+      });
+      state.processes.push(apiProcessToLocal(saved));
+      await loadAllApiProcesses();
+    } catch (error) {
+      alert(`Nao foi possivel registrar na API: ${error.message}`);
+      return;
+    }
+  } else {
+    state.processes.push(process);
+  }
   persist();
   event.currentTarget.reset();
   renderAll();
 }
 
-function saveUser(event) {
+async function saveUser(event) {
   event.preventDefault();
   const data = new FormData(els.userForm);
   const name = data.get("name").trim();
@@ -764,8 +1770,29 @@ function saveUser(event) {
     createdAt: new Date().toISOString(),
   };
 
-  state.users.push(user);
-  state.currentUserId = user.id;
+  if (state.apiOnline) {
+    try {
+      const saved = await apiRequest("/api/users", {
+        method: "POST",
+        body: JSON.stringify({
+          name: user.name,
+          email: user.email,
+          department: user.department,
+          role: user.role,
+          password: data.get("password"),
+        }),
+      });
+      state.users.push(apiUserToLocal(saved));
+      state.currentUserId = saved.id;
+      await loadApiProcesses();
+    } catch (error) {
+      alert(`Nao foi possivel criar usuario na API: ${error.message}`);
+      return;
+    }
+  } else {
+    state.users.push(user);
+    state.currentUserId = user.id;
+  }
   persist();
   els.userForm.reset();
   closeDialog(els.userDialog);
@@ -790,26 +1817,87 @@ function exportData() {
   URL.revokeObjectURL(url);
 }
 
+function csvCell(value) {
+  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+}
+
+function exportCsv() {
+  const rows = [
+    ["Numero", "Ano", "Objeto", "Secretaria", "Responsavel", "Prioridade", "Status", "Chegada", "Prazo", "Saida", "Documentos"],
+    ...currentUserProcesses().map((process) => [
+      process.number,
+      process.year,
+      process.subject,
+      process.secretary,
+      process.owner,
+      process.priority,
+      labelForStatus(process.status),
+      formatDate(process.arrivalDate),
+      formatDate(process.deadline),
+      formatDate(process.exitDate),
+      (process.docs || []).join("; "),
+    ]),
+  ];
+  const csv = rows.map((row) => row.map(csvCell).join(";")).join("\r\n");
+  const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const userName = (currentUser()?.name || "usuario").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  link.href = url;
+  link.download = `atlasflow-relatorio-${userName || "mesa"}-${todayISO()}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function printExecutiveReport() {
+  window.print();
+}
+
+function importedPayloadFromParsed(parsed) {
+  if (Array.isArray(parsed)) {
+    return {
+      users: defaultUsers(),
+      currentUserId: state.currentUserId || "user-compras",
+      processes: parsed,
+    };
+  }
+
+  return {
+    users: Array.isArray(parsed.users) && parsed.users.length ? parsed.users : defaultUsers(),
+    currentUserId: parsed.currentUserId || parsed.current_user_id || state.currentUserId || "user-compras",
+    processes: Array.isArray(parsed.processes) ? parsed.processes : [],
+  };
+}
+
 function importData(event) {
   const file = event.target.files?.[0];
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     try {
       const parsed = JSON.parse(reader.result);
-      if (Array.isArray(parsed)) {
-        state.users = defaultUsers();
-        state.currentUserId = state.users[0].id;
-        state.processes = parsed.map((process) => normalizeProcess(process, state.currentUserId));
-      } else {
-        const users = Array.isArray(parsed.users) && parsed.users.length ? parsed.users : defaultUsers();
-        const currentUserId = parsed.currentUserId || users[0].id;
-        const processes = Array.isArray(parsed.processes) ? parsed.processes : [];
-        state.users = users;
-        state.currentUserId = currentUserId;
-        state.processes = processes.map((process) => normalizeProcess(process, currentUserId));
+      const payload = importedPayloadFromParsed(parsed);
+
+      if (state.apiOnline) {
+        const result = await apiRequest("/api/import", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        const users = await apiRequest("/api/users");
+        state.users = users.map(apiUserToLocal);
+        state.currentUserId = result.current_user_id || payload.currentUserId || state.currentUserId;
+        await loadAllApiProcesses();
+        ensureCurrentUser();
+        persist();
+        renderAll();
+        alert(`Importacao fixada na API. Usuarios: ${result.users}. Processos: ${result.processes}.`);
+        return;
       }
+
+      state.users = payload.users.map(normalizeUser);
+      state.currentUserId = payload.currentUserId || state.users[0].id;
+      state.processes = payload.processes.map((process) => normalizeProcess(process, state.currentUserId));
       ensureCurrentUser();
       persist();
       renderAll();
@@ -824,14 +1912,30 @@ function importData(event) {
 }
 
 function bindEvents() {
+  els.loginForm.addEventListener("submit", login);
   document.querySelector("#newProcessBtn").addEventListener("click", () => openProcessDialog());
-  document.querySelector("#newUserBtn").addEventListener("click", () => els.userDialog.showModal());
+  document.querySelector("#newUserBtn").addEventListener("click", () => {
+    if (!isAdminUser()) {
+      alert("Apenas Israel Junior pode criar usuarios.");
+      return;
+    }
+    els.userDialog.showModal();
+  });
+  document.querySelector("#refreshDataBtn").addEventListener("click", refreshData);
+  document.querySelector("#logoutBtn").addEventListener("click", logout);
+  document.querySelector("#manageUsersBtn").addEventListener("click", openManageUsersDialog);
+  document.querySelector("#customizeKanbanBtn").addEventListener("click", openKanbanSettingsDialog);
   document.querySelector("#closeProcessDialog").addEventListener("click", () => closeDialog(els.processDialog));
   document.querySelector("#cancelProcessBtn").addEventListener("click", () => closeDialog(els.processDialog));
   document.querySelector("#closeMoveDialog").addEventListener("click", () => closeDialog(els.moveDialog));
   document.querySelector("#cancelMoveBtn").addEventListener("click", () => closeDialog(els.moveDialog));
   document.querySelector("#closeUserDialog").addEventListener("click", () => closeDialog(els.userDialog));
   document.querySelector("#cancelUserBtn").addEventListener("click", () => closeDialog(els.userDialog));
+  document.querySelector("#closeManageUsersDialog").addEventListener("click", () => closeDialog(els.manageUsersDialog));
+  document.querySelector("#doneManageUsersBtn").addEventListener("click", () => closeDialog(els.manageUsersDialog));
+  document.querySelector("#closeKanbanSettingsDialog").addEventListener("click", () => closeDialog(els.kanbanSettingsDialog));
+  document.querySelector("#doneKanbanSettingsBtn").addEventListener("click", () => closeDialog(els.kanbanSettingsDialog));
+  document.querySelector("#resetKanbanSettingsBtn").addEventListener("click", resetKanbanSettings);
   document.querySelector("#closeCotaDialog").addEventListener("click", () => closeDialog(els.cotaDialog));
   document.querySelector("#cancelCotaBtn").addEventListener("click", () => closeDialog(els.cotaDialog));
   document.querySelector("#saveReasonsBtn").addEventListener("click", () => {
@@ -839,18 +1943,44 @@ function bindEvents() {
     renderCotaReasons();
     updateCotaPreview();
   });
+  document.querySelector("#saveTemplateBtn").addEventListener("click", () => {
+    const type = els.cotaForm.elements.documentType.value || "devolucao";
+    saveDocumentTemplate(type, els.cotaForm.elements.templateText.value);
+    updateCotaPreview();
+    alert("Modelo salvo para este navegador.");
+  });
+  document.querySelector("#resetTemplateBtn").addEventListener("click", () => {
+    const type = els.cotaForm.elements.documentType.value || "devolucao";
+    els.cotaForm.elements.templateText.value = resetDocumentTemplate(type);
+    updateCotaPreview();
+  });
+  els.documentTypeSelect.addEventListener("change", () => {
+    loadSelectedTemplate();
+    updateCotaPreview();
+  });
   document.querySelector("#copyCotaBtn").addEventListener("click", copyCotaText);
+  document.querySelector("#exportDocBtn").addEventListener("click", exportDocumentWord);
+  document.querySelector("#exportPdfBtn").addEventListener("click", exportDocumentPdf);
   els.cotaForm.addEventListener("input", updateCotaPreview);
   els.cotaReasons.addEventListener("change", updateCotaPreview);
   document.querySelector("#quickForm").addEventListener("submit", addQuickProcess);
   document.querySelector("#exportBtn").addEventListener("click", exportData);
+  document.querySelector("#exportCsvBtn").addEventListener("click", exportCsv);
+  document.querySelector("#printReportBtn").addEventListener("click", printExecutiveReport);
   document.querySelector("#importInput").addEventListener("change", importData);
   els.processForm.addEventListener("submit", saveProcess);
   els.moveForm.addEventListener("submit", saveMovement);
   els.userForm.addEventListener("submit", saveUser);
 
-  els.userSelect.addEventListener("change", () => {
+  els.userSelect.addEventListener("change", async () => {
     state.currentUserId = els.userSelect.value;
+    if (state.apiOnline) {
+      try {
+        await loadApiProcesses();
+      } catch (error) {
+        alert(`Nao foi possivel carregar processos da API: ${error.message}`);
+      }
+    }
     persist();
     renderAll();
   });
@@ -873,11 +2003,26 @@ function bindEvents() {
     const moveId = event.target.closest("[data-move]")?.dataset.move;
     const cotaId = event.target.closest("[data-cota]")?.dataset.cota;
     const deleteId = event.target.closest("[data-delete]")?.dataset.delete;
+    const deleteUserId = event.target.closest("[data-delete-user]")?.dataset.deleteUser;
+    const passwordUserId = event.target.closest("[data-password-user]")?.dataset.passwordUser;
+    const clearPasswordUserId = event.target.closest("[data-clear-password-user]")?.dataset.clearPasswordUser;
+    const kanbanUpId = event.target.closest("[data-kanban-up]")?.dataset.kanbanUp;
+    const kanbanDownId = event.target.closest("[data-kanban-down]")?.dataset.kanbanDown;
 
+    if (deleteUserId) deleteUser(deleteUserId);
+    if (passwordUserId) setUserPassword(passwordUserId);
+    if (clearPasswordUserId) clearUserPassword(clearPasswordUserId);
+    if (kanbanUpId) moveKanbanColumn(kanbanUpId, -1);
+    if (kanbanDownId) moveKanbanColumn(kanbanDownId, 1);
     if (cotaId) openCotaDialog(cotaId);
     if (editId) openProcessDialog(state.processes.find((process) => process.id === editId && process.userId === state.currentUserId));
     if (moveId) openMoveDialog(moveId);
     if (deleteId) deleteProcess(deleteId);
+  });
+
+  els.kanbanSettingsList.addEventListener("change", (event) => {
+    const key = event.target.closest("[data-kanban-visible]")?.dataset.kanbanVisible;
+    if (key) toggleKanbanColumn(key, event.target.checked);
   });
 
   document.querySelector("#listTab").addEventListener("click", () => setView("list"));
@@ -892,7 +2037,17 @@ function setView(view) {
   document.querySelector("#historyTab").classList.toggle("active", view === "history");
 }
 
-fillSelects();
-bindEvents();
-load();
-renderAll();
+async function startApp() {
+  fillSelects();
+  bindEvents();
+  await load();
+  renderLoginUsers();
+  renderAll();
+  if (state.apiOnline && !state.authToken) {
+    showLogin();
+  } else {
+    hideLogin();
+  }
+}
+
+startApp();

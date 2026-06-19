@@ -16,22 +16,22 @@
     <section class="hero-grid">
       <div class="hero-copy">
         <p class="eyebrow">AtlasFlow</p>
-        <h1>Manual ilustrado para acompanhar a vida dos processos</h1>
+        <h1>Manual completo para gestao da vida dos processos</h1>
         <p>
-          Aprenda a registrar entradas, controlar prazos, movimentar processos,
-          acompanhar o kanban, consultar historico e manter backup da sua base.
+          Guia pratico para usar usuarios, dashboard, kanban, prazos, historico,
+          relatorios, cotas, documentos padronizados, backups e homologacao.
         </p>
       </div>
       <div class="hero-illustration" aria-hidden="true">
         <div class="desk-card card-one">
           <span></span>
-          <strong>707/2026</strong>
-          <small>Analisar TR e ETP</small>
+          <strong>Processo</strong>
+          <small>Onde esta, com quem esta e o que falta</small>
         </div>
         <div class="desk-card card-two">
           <span></span>
-          <strong>Prazo</strong>
-          <small>3 dias</small>
+          <strong>Documento</strong>
+          <small>Cota, despacho, PDF e DOCX</small>
         </div>
         <div class="flow-line"></div>
         <div class="flow-dot dot-one"></div>
@@ -45,15 +45,18 @@
     <aside class="toc">
       <strong>Neste manual</strong>
       <a href="#visao-geral">Visao geral</a>
-      <a href="#usuarios">Usuarios</a>
-      <a href="#primeiros-passos">Primeiros passos</a>
+      <a href="#acesso">Acesso e login</a>
+      <a href="#usuarios">Usuarios e permissoes</a>
+      <a href="#ambientes">Producao e homologacao</a>
       <a href="#tela-inicial">Tela inicial</a>
-      <a href="#cadastro">Cadastro</a>
+      <a href="#dashboard">Dashboard e relatorios</a>
+      <a href="#cadastro">Cadastro de processo</a>
       <a href="#kanban">Kanban</a>
       <a href="#movimentacao">Movimentacao</a>
       <a href="#historico">Historico</a>
-      <a href="#prazos">Prazos</a>
-      <a href="#backup">Backup</a>
+      <a href="#documentos">Cotas e documentos</a>
+      <a href="#exportacoes">Exportacoes</a>
+      <a href="#backup">Backup e importacao</a>
       <a href="#rotina">Rotina recomendada</a>
       <a href="#problemas">Solucao de problemas</a>
     </aside>
@@ -64,76 +67,141 @@
           <span class="step-badge">01</span>
           <div>
             <h2>Visao Geral</h2>
-        <p>O AtlasFlow e uma aplicacao para organizar processos administrativos por usuario, etapa, prazo, prioridade e historico.</p>
+            <p>O AtlasFlow organiza processos administrativos por usuario, etapa, prazo, documentos, historico e relatorios.</p>
           </div>
         </div>
         <div class="answer-grid">
-          <div><strong>Onde esta?</strong><span>Status e coluna do kanban.</span></div>
-          <div><strong>Com quem esta?</strong><span>Responsavel, origem e destino.</span></div>
-          <div><strong>O que precisa?</strong><span>Documentos, observacoes e pendencias.</span></div>
-          <div><strong>Qual prazo?</strong><span>Data limite e marcador de atraso.</span></div>
+          <div><strong>Onde esta?</strong><span>Status, kanban e destino atual.</span></div>
+          <div><strong>Com quem esta?</strong><span>Usuario ativo, responsavel, origem e destino.</span></div>
+          <div><strong>O que precisa?</strong><span>Documentos, motivos, observacoes e pendencias.</span></div>
+          <div><strong>Qual o prazo?</strong><span>Prazo interno, atrasos e vencimentos proximos.</span></div>
+        </div>
+        <div class="tip-box">
+          <strong>Objetivo do sistema:</strong> acompanhar a vida do processo de ponta a ponta, com rastreabilidade simples e visual.
+        </div>
+      </section>
+
+      <section id="acesso" class="manual-section">
+        <div class="section-heading">
+          <span class="step-badge">02</span>
+          <div>
+            <h2>Acesso e Login</h2>
+            <p>Na versao em rede, cada pessoa acessa sua propria mesa de trabalho.</p>
+          </div>
+        </div>
+        <ol class="steps">
+          <li>Abra o endereco informado pelo administrador. Em homologacao, use <code>http://localhost:8124</code>.</li>
+          <li>Escolha seu usuario na tela de login.</li>
+          <li>Digite a senha cadastrada. Usuarios ainda sem senha podem entrar com senha em branco, se o administrador permitir.</li>
+          <li>Clique em <strong>Entrar</strong>.</li>
+          <li>Use <strong>Sair</strong> ao terminar ou quando precisar trocar de usuario.</li>
+        </ol>
+        <div class="example-box">
+          <strong>Importante:</strong>
+          <p>Depois que uma senha e definida para o usuario, a entrada com senha em branco deixa de funcionar.</p>
         </div>
       </section>
 
       <section id="usuarios" class="manual-section">
         <div class="section-heading">
-          <span class="step-badge">02</span>
+          <span class="step-badge">03</span>
           <div>
-            <h2>Usuarios</h2>
-            <p>Cada usuario representa uma pessoa, mesa ou setor. Os processos ficam vinculados ao usuario ativo.</p>
+            <h2>Usuarios e Permissoes</h2>
+            <p>Os processos sao separados por usuario. Cada usuario visualiza sua mesa de trabalho.</p>
+          </div>
+        </div>
+        <div class="cards-grid">
+          <div class="info-card">
+            <h3>Israel Junior</h3>
+            <p>Administrador. Pode alternar usuarios, criar usuarios, gerenciar senhas e excluir usuarios sem processos vinculados.</p>
+          </div>
+          <div class="info-card">
+            <h3>Operador</h3>
+            <p>Visualiza e trabalha na propria mesa. Nao gerencia usuarios.</p>
+          </div>
+          <div class="info-card">
+            <h3>Consulta</h3>
+            <p>Perfil planejado para acesso mais restrito, voltado a visualizacao.</p>
+          </div>
+          <div class="info-card">
+            <h3>Senha</h3>
+            <p>Pode ser definida, limpa ou alterada pelo administrador em Gerenciar usuarios.</p>
           </div>
         </div>
         <ol class="steps">
-          <li>Use o seletor <strong>Alternar usuario</strong> para trocar a mesa ativa.</li>
-          <li>Clique em <strong>Novo usuario</strong> para cadastrar outro setor ou operador.</li>
-          <li>Ao cadastrar um processo, ele sera salvo somente para o usuario ativo.</li>
-          <li>Kanban, indicadores, lista e historico exibem somente dados do usuario selecionado.</li>
+          <li>Para criar usuario, entre como Israel Junior e clique em <strong>Novo usuario</strong>.</li>
+          <li>Para alterar senha, clique em <strong>Gerenciar usuarios</strong> e depois em <strong>Definir senha</strong>.</li>
+          <li>Para permitir entrada sem senha, use <strong>Limpar senha</strong>.</li>
+          <li>Usuarios com processos vinculados nao devem ser excluidos.</li>
         </ol>
       </section>
 
-      <section id="primeiros-passos" class="manual-section">
+      <section id="ambientes" class="manual-section">
         <div class="section-heading">
-          <span class="step-badge">03</span>
+          <span class="step-badge">04</span>
           <div>
-            <h2>Primeiros Passos</h2>
-            <p>Abra o sistema e confira se a tela inicial carregou com indicadores, kanban e lista de processos.</p>
+            <h2>Producao e Homologacao</h2>
+            <p>O AtlasFlow pode rodar em dois ambientes para evitar impacto nos usuarios em teste.</p>
           </div>
         </div>
-        <ol class="steps">
-          <li>Abra o arquivo <code>index.html</code> ou acesse o endereco publicado no GitHub Pages.</li>
-          <li>Use <strong>Novo processo</strong> para cadastrar com detalhes.</li>
-          <li>Use <strong>Entrada rapida</strong> quando quiser registrar agora e completar depois.</li>
-          <li>Use <strong>Exportar JSON</strong> ao fim do dia para manter backup.</li>
-        </ol>
+        <div class="answer-grid">
+          <div><strong>Producao</strong><span>Ambiente usado pelos usuarios no dia a dia. Porta padrao: <code>8123</code>.</span></div>
+          <div><strong>API producao</strong><span>Servidor de dados da producao. Porta padrao: <code>8000</code>.</span></div>
+          <div><strong>Homologacao</strong><span>Ambiente separado para testar melhorias. Porta padrao: <code>8124</code>.</span></div>
+          <div><strong>API homologacao</strong><span>Servidor de dados da homologacao. Porta padrao: <code>8001</code>.</span></div>
+        </div>
         <div class="tip-box">
-          <strong>Importante:</strong> nesta V1, os dados ficam salvos no navegador usado. Se abrir em outro computador ou navegador, a base sera diferente.
+          <strong>Boa pratica:</strong> desenvolva e teste em homologacao. Publique em producao somente depois de validar.
         </div>
       </section>
 
       <section id="tela-inicial" class="manual-section">
         <div class="section-heading">
-          <span class="step-badge">03</span>
+          <span class="step-badge">05</span>
           <div>
             <h2>Tela Inicial</h2>
-            <p>A tela foi organizada para leitura rapida da operacao.</p>
+            <p>A tela inicial concentra operacao, relatorios e entrada rapida.</p>
           </div>
         </div>
         <div class="screen-map">
-          <div class="screen-header">Cabecalho: Manual, Novo processo, Exportar e Importar</div>
+          <div class="screen-header">Cabecalho: Manual, Novo processo, Exportar JSON, Importar JSON</div>
           <div class="screen-metrics">Indicadores: Na mesa, Atrasados, Urgentes, Concluidos</div>
           <div class="screen-filters">Filtros: busca, status, prioridade e documento</div>
-          <div class="screen-main">Kanban operacional</div>
+          <div class="screen-main">Kanban operacional e gargalos</div>
           <div class="screen-side">Entrada rapida</div>
-          <div class="screen-list">Lista e historico</div>
+          <div class="screen-list">Relatorios, lista, historico e acoes</div>
         </div>
+      </section>
+
+      <section id="dashboard" class="manual-section">
+        <div class="section-heading">
+          <span class="step-badge">06</span>
+          <div>
+            <h2>Dashboard e Relatorios</h2>
+            <p>O dashboard ajuda a entender rapidamente a situacao da mesa ativa.</p>
+          </div>
+        </div>
+        <div class="cards-grid">
+          <div class="info-card"><h3>Na mesa</h3><p>Quantidade de processos ainda nao concluidos.</p></div>
+          <div class="info-card"><h3>Atrasados</h3><p>Processos com prazo vencido e status diferente de concluido.</p></div>
+          <div class="info-card"><h3>Urgentes</h3><p>Demandas marcadas como prioridade urgente.</p></div>
+          <div class="info-card"><h3>Concluidos</h3><p>Processos finalizados ou encaminhados para a proxima etapa.</p></div>
+        </div>
+        <ol class="steps">
+          <li>Leia primeiro a <strong>Saude da operacao</strong>.</li>
+          <li>Confira <strong>Tempo medio em aberto</strong>, <strong>Proximos 7 dias</strong> e <strong>Taxa de conclusao</strong>.</li>
+          <li>Use o <strong>Relatorio executivo</strong> para reunioes e acompanhamento da equipe.</li>
+          <li>Use <strong>Gargalos e prazos</strong> para priorizar o trabalho do dia.</li>
+          <li>Clique em <strong>Imprimir</strong> ou <strong>Exportar CSV</strong> quando precisar compartilhar dados.</li>
+        </ol>
       </section>
 
       <section id="cadastro" class="manual-section">
         <div class="section-heading">
-          <span class="step-badge">04</span>
+          <span class="step-badge">07</span>
           <div>
             <h2>Cadastro de Processo</h2>
-            <p>O cadastro completo concentra identificacao, controle, prazo, saida, documentos e pendencias.</p>
+            <p>O cadastro completo registra identificacao, controle, documentos, saida, observacoes e historico.</p>
           </div>
         </div>
         <div class="cards-grid">
@@ -143,7 +211,7 @@
           </div>
           <div class="info-card">
             <h3>Controle</h3>
-            <p>Data de chegada, origem, finalidade, prazo, status e prioridade.</p>
+            <p>Chegada, origem, finalidade, prazo, status e prioridade.</p>
           </div>
           <div class="info-card">
             <h3>Documentos</h3>
@@ -154,6 +222,14 @@
             <p>Data de saida, destino e finalidade do encaminhamento.</p>
           </div>
         </div>
+        <ol class="steps">
+          <li>Clique em <strong>Novo processo</strong> para abrir o cadastro completo.</li>
+          <li>Preencha numero e ano em campos separados.</li>
+          <li>Descreva o objeto de forma clara.</li>
+          <li>Marque prioridade e prazo sempre que houver controle interno.</li>
+          <li>Selecione os documentos existentes no processo.</li>
+          <li>Use observacoes para pendencias, complementacoes ou riscos.</li>
+        </ol>
         <div class="example-box">
           <strong>Exemplo de observacao objetiva:</strong>
           <p>Falta anexar pesquisa de mercado atualizada e ajustar justificativa do quantitativo no TR.</p>
@@ -162,10 +238,10 @@
 
       <section id="kanban" class="manual-section">
         <div class="section-heading">
-          <span class="step-badge">05</span>
+          <span class="step-badge">08</span>
           <div>
             <h2>Kanban Operacional</h2>
-            <p>O kanban mostra gargalos e proximas acoes de forma visual.</p>
+            <p>O kanban mostra em qual etapa cada processo esta parado.</p>
           </div>
         </div>
         <div class="mini-kanban">
@@ -176,17 +252,24 @@
           <div>Devolver</div>
           <div>Concluir</div>
         </div>
-        <p>
-          Clique em um cartao para editar o processo. Use os filtros para reduzir o kanban a uma secretaria, prioridade, documento ou termo de busca.
-        </p>
+        <ol class="steps">
+          <li>Use o kanban para identificar gargalos.</li>
+          <li>Clique em um cartao para editar o processo.</li>
+          <li>Use filtros para reduzir a visualizacao por status, prioridade, documento ou termo de busca.</li>
+          <li>Quando houver muitos processos na coluna, use a rolagem interna.</li>
+          <li>Clique em <strong>Personalizar</strong> para alterar a ordem das colunas ou ocultar etapas do quadro.</li>
+        </ol>
+        <div class="tip-box">
+          <strong>Personalizacao:</strong> ocultar uma coluna nao apaga processos. Eles continuam disponiveis na lista, nos filtros e nos relatorios.
+        </div>
       </section>
 
       <section id="movimentacao" class="manual-section">
         <div class="section-heading">
-          <span class="step-badge">06</span>
+          <span class="step-badge">09</span>
           <div>
             <h2>Movimentacao</h2>
-            <p>Cada mudanca importante deve ser registrada pelo botao <strong>Movimentar</strong>.</p>
+            <p>Cada mudanca relevante deve ser registrada pelo botao <strong>Movimentar</strong>.</p>
           </div>
         </div>
         <ol class="steps">
@@ -196,47 +279,90 @@
           <li>Salve para atualizar kanban, lista, indicadores e historico.</li>
         </ol>
         <div class="tip-box">
-          Quando o status for <strong>Devolver</strong> ou <strong>Concluir</strong>, o sistema registra tambem os dados de saida.
+          Quando o status for <strong>Devolver</strong> ou <strong>Concluir</strong>, o sistema tambem registra os dados de saida.
         </div>
       </section>
 
       <section id="historico" class="manual-section">
         <div class="section-heading">
-          <span class="step-badge">07</span>
+          <span class="step-badge">10</span>
           <div>
-            <h2>Historico</h2>
-            <p>A aba Historico mostra todas as movimentacoes registradas na base local.</p>
+            <h2>Historico do Processo</h2>
+            <p>O historico acompanha a vida do processo e fica vinculado aos dados dele.</p>
           </div>
         </div>
         <div class="timeline">
           <div><span></span><strong>Entrada registrada</strong><p>Processo chegou na mesa.</p></div>
-          <div><span></span><strong>Movimentacao registrada</strong><p>Processo mudou de etapa ou foi encaminhado.</p></div>
-          <div><span></span><strong>Status alterado</strong><p>Alteracao feita pelo cadastro completo.</p></div>
+          <div><span></span><strong>Status alterado</strong><p>Alteracao feita no cadastro completo.</p></div>
+          <div><span></span><strong>Movimentacao registrada</strong><p>Processo mudou de etapa, destino ou finalidade.</p></div>
+        </div>
+        <ol class="steps">
+          <li>Abra um processo em <strong>Editar</strong> para ver a linha do tempo interna.</li>
+          <li>Use a aba <strong>Historico</strong> para ver eventos gerais da mesa ativa.</li>
+          <li>Registre observacoes objetivas para manter rastreabilidade.</li>
+        </ol>
+      </section>
+
+      <section id="documentos" class="manual-section">
+        <div class="section-heading">
+          <span class="step-badge">11</span>
+          <div>
+            <h2>Cotas e Documentos Padronizados</h2>
+            <p>O AtlasFlow gera documentos com os dados do processo e modelos editaveis.</p>
+          </div>
+        </div>
+        <div class="cards-grid">
+          <div class="info-card"><h3>Cota de devolucao</h3><p>Usada para devolver o processo ao setor de origem com pendencias.</p></div>
+          <div class="info-card"><h3>Cota de encaminhamento</h3><p>Usada para encaminhar o processo a outro setor ou responsavel.</p></div>
+          <div class="info-card"><h3>Cota para juridico</h3><p>Usada para enviar os autos ao Juridico Administrativo.</p></div>
+          <div class="info-card"><h3>Despacho de saneamento</h3><p>Usado para registrar providencias necessarias antes do prosseguimento.</p></div>
+        </div>
+        <ol class="steps">
+          <li>Na lista de processos, clique em <strong>Cota</strong>.</li>
+          <li>Escolha o <strong>Modelo do documento</strong>.</li>
+          <li>Confira destino, local, data e assinatura.</li>
+          <li>Marque os motivos e pendencias aplicaveis.</li>
+          <li>Edite a lista de motivos, se necessario, e clique em <strong>Atualizar motivos</strong>.</li>
+          <li>Revise a previa do documento.</li>
+          <li>Use <strong>Copiar texto</strong>, <strong>Exportar DOCX</strong> ou <strong>Exportar PDF</strong>.</li>
+        </ol>
+        <div class="example-box">
+          <strong>Variaveis disponiveis nos modelos:</strong>
+          <p><code>{{titulo}}</code>, <code>{{processo}}</code>, <code>{{numero}}</code>, <code>{{ano}}</code>, <code>{{objeto}}</code>, <code>{{secretaria}}</code>, <code>{{origem}}</code>, <code>{{destino}}</code>, <code>{{responsavel}}</code>, <code>{{chegada}}</code>, <code>{{prazo}}</code>, <code>{{status}}</code>, <code>{{prioridade}}</code>, <code>{{documentos}}</code>, <code>{{motivos}}</code>, <code>{{observacoes}}</code>, <code>{{cidade}}</code>, <code>{{data}}</code> e <code>{{assinatura}}</code>.</p>
+        </div>
+        <div class="tip-box">
+          <strong>Modelos editaveis:</strong> altere o texto em <strong>Editar modelo selecionado</strong> e clique em <strong>Salvar modelo</strong>. Para voltar ao original, use <strong>Restaurar padrao</strong>.
         </div>
       </section>
 
-      <section id="prazos" class="manual-section">
+      <section id="exportacoes" class="manual-section">
         <div class="section-heading">
-          <span class="step-badge">08</span>
+          <span class="step-badge">12</span>
           <div>
-            <h2>Prazos e Atrasos</h2>
-            <p>Um processo fica atrasado quando tem prazo vencido e ainda nao esta concluido.</p>
+            <h2>Exportacoes</h2>
+            <p>Existem exportacoes para dados e para documentos.</p>
           </div>
         </div>
+        <div class="cards-grid">
+          <div class="info-card"><h3>JSON</h3><p>Backup completo da base do sistema.</p></div>
+          <div class="info-card"><h3>CSV</h3><p>Planilha simples com processos da mesa ativa.</p></div>
+          <div class="info-card"><h3>DOCX</h3><p>Documento editavel gerado pela API.</p></div>
+          <div class="info-card"><h3>PDF</h3><p>Documento final para compartilhar ou arquivar.</p></div>
+        </div>
         <ul class="check-list">
-          <li>Preencha o prazo sempre que existir SLA interno.</li>
-          <li>Revise atrasados no inicio do expediente.</li>
-          <li>Movimente o processo sempre que sair da sua mesa.</li>
-          <li>Conclua processos finalizados para limpar a fila operacional.</li>
+          <li>Use JSON para backup e migracao.</li>
+          <li>Use CSV para relatorios em planilha.</li>
+          <li>Use DOCX quando precisar editar o documento no Word.</li>
+          <li>Use PDF quando quiser uma versao fechada para envio ou arquivo.</li>
         </ul>
       </section>
 
       <section id="backup" class="manual-section">
         <div class="section-heading">
-          <span class="step-badge">09</span>
+          <span class="step-badge">13</span>
           <div>
             <h2>Backup e Importacao</h2>
-            <p>Como a V1 salva dados no navegador, backup e uma rotina essencial.</p>
+            <p>Backups evitam perda de dados e facilitam migracao entre ambientes.</p>
           </div>
         </div>
         <div class="backup-flow">
@@ -246,53 +372,68 @@
           <span></span>
           <div>Importar quando precisar</div>
         </div>
-        <p>
-          Antes de importar uma base, exporte a base atual. A importacao substitui os dados salvos no navegador.
-        </p>
+        <ol class="steps">
+          <li>Antes de grandes alteracoes, clique em <strong>Exportar JSON</strong>.</li>
+          <li>Guarde o arquivo em local seguro.</li>
+          <li>Para restaurar ou migrar, use <strong>Importar JSON</strong>.</li>
+          <li>Em ambiente com API, a importacao e fixada no banco de dados.</li>
+        </ol>
+        <div class="tip-box">
+          <strong>Homologacao:</strong> quando a base de producao for copiada para homologacao, o banco antigo da homologacao deve ser salvo em backup antes da troca.
+        </div>
       </section>
 
       <section id="rotina" class="manual-section">
         <div class="section-heading">
-          <span class="step-badge">10</span>
+          <span class="step-badge">14</span>
           <div>
             <h2>Rotina Recomendada</h2>
             <p>Uma rotina simples deixa o controle confiavel sem pesar no dia a dia.</p>
           </div>
         </div>
         <ol class="steps">
-          <li>Abrir o AtlasFlow no inicio do expediente.</li>
-          <li>Conferir indicadores de atrasados e urgentes.</li>
-          <li>Registrar novas entradas.</li>
-          <li>Movimentar processos que sairam da mesa.</li>
-          <li>Atualizar observacoes e pendencias relevantes.</li>
-          <li>Exportar backup ao fim do dia.</li>
+          <li>Entrar no AtlasFlow no inicio do expediente.</li>
+          <li>Conferir <strong>Atrasados</strong>, <strong>Urgentes</strong> e <strong>Proximos 7 dias</strong>.</li>
+          <li>Registrar novas entradas pela entrada rapida ou pelo cadastro completo.</li>
+          <li>Movimentar processos que mudaram de etapa ou destino.</li>
+          <li>Gerar cotas e despachos quando houver devolucao, saneamento ou encaminhamento.</li>
+          <li>Atualizar observacoes e documentos marcados.</li>
+          <li>Exportar relatorio ou backup ao fim do dia, quando necessario.</li>
         </ol>
       </section>
 
       <section id="problemas" class="manual-section">
         <div class="section-heading">
-          <span class="step-badge">11</span>
+          <span class="step-badge">15</span>
           <div>
             <h2>Solucao de Problemas</h2>
-            <p>Algumas duvidas comuns da primeira versao local.</p>
+            <p>Dicas para resolver as ocorrencias mais comuns.</p>
           </div>
         </div>
         <div class="faq">
           <details open>
-            <summary>Os dados sumiram</summary>
-            <p>Verifique se voce abriu em outro navegador ou computador. Se tiver backup, use Importar JSON.</p>
+            <summary>Nao consigo entrar</summary>
+            <p>Confira usuario e senha. Se a senha foi definida, o acesso em branco nao funciona. Peça ao administrador para redefinir ou limpar a senha.</p>
           </details>
           <details>
             <summary>O processo nao aparece</summary>
-            <p>Clique em Limpar para remover filtros ativos e exibir todos os processos.</p>
+            <p>Clique em Limpar para remover filtros. Confira tambem se voce esta no usuario correto.</p>
           </details>
           <details>
-            <summary>O processo aparece como atrasado</summary>
-            <p>Confira o prazo. Se ja foi finalizado, movimente para Concluir.</p>
+            <summary>Os dados parecem antigos</summary>
+            <p>Clique em Atualizar. Se estiver em homologacao, confirme se a base de producao foi copiada recentemente.</p>
           </details>
           <details>
-            <summary>Quero usar em equipe</summary>
-            <p>Na V1 cada navegador tem sua propria base. Para equipe, use exportacao/importacao ou evolua para a futura versao web.</p>
+            <summary>O PDF ou DOCX nao baixa</summary>
+            <p>Verifique se a API esta online. Em homologacao, a API deve responder em <code>http://localhost:8001/health</code>.</p>
+          </details>
+          <details>
+            <summary>O processo aparece atrasado</summary>
+            <p>Confira o prazo. Se o processo ja foi finalizado, movimente para Concluir.</p>
+          </details>
+          <details>
+            <summary>Quero testar uma melhoria sem afetar usuarios</summary>
+            <p>Use o ambiente de homologacao. Depois de validar, publique em producao em horario combinado.</p>
           </details>
         </div>
       </section>

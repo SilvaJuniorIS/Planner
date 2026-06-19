@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AtlasFlow | Calendario do MVP</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d8e0ec;
+      --brand: #2459c9;
+      --brand-soft: #eaf1ff;
+      --success: #18794e;
+      --success-soft: #e8f6ef;
+      --warning: #a15c00;
+      --warning-soft: #fff4df;
+      --danger: #b42318;
+      --danger-soft: #fff0ee;
+      --shadow: 0 16px 40px rgba(23, 32, 51, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 32px 0 48px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 20px;
+      align-items: stretch;
+      margin-bottom: 20px;
+    }
+
+    .hero-main,
+    .hero-card,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-main {
+      padding: 28px;
+      border-radius: 8px;
+    }
+
+    .hero-main h1 {
+      margin: 0 0 10px;
+      font-size: clamp(30px, 4vw, 46px);
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .hero-main p {
+      margin: 0;
+      max-width: 780px;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      color: var(--brand);
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0;
+    }
+
+    .hero-card {
+      display: grid;
+      gap: 12px;
+      padding: 22px;
+      border-radius: 8px;
+    }
+
+    .deadline {
+      padding: 16px;
+      border-radius: 8px;
+      background: var(--brand-soft);
+      border: 1px solid #cbdcff;
+    }
+
+    .deadline span,
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .deadline strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 27px;
+      color: var(--brand);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .stat {
+      padding: 18px;
+      border-radius: 8px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+
+    .stat strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 24px;
+    }
+
+    .panel {
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .panel h2 {
+      margin: 0 0 6px;
+      font-size: 24px;
+    }
+
+    .panel > p {
+      margin: 0 0 18px;
+      color: var(--muted);
+    }
+
+    .timeline {
+      display: grid;
+      gap: 14px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 8px;
+      margin-bottom: 20px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+    }
+
+    .tab-button {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font: inherit;
+      font-weight: 700;
+      white-space: nowrap;
+      cursor: pointer;
+      min-height: 44px;
+    }
+
+    .tab-button.active {
+      color: #ffffff;
+      border-color: var(--brand);
+      background: var(--brand);
+    }
+
+    .tab-panel {
+      display: none;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    .project-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 220px;
+      gap: 16px;
+      align-items: start;
+      margin-bottom: 18px;
+    }
+
+    .project-header h2 {
+      margin: 0 0 6px;
+    }
+
+    .project-header p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .project-status {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--brand-soft);
+    }
+
+    .project-status span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .project-status strong {
+      display: block;
+      margin-top: 4px;
+      color: var(--brand);
+      font-size: 19px;
+    }
+
+    .week {
+      display: grid;
+      grid-template-columns: 180px minmax(0, 1fr) 170px;
+      gap: 16px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcff;
+    }
+
+    .week-date {
+      border-right: 1px solid var(--line);
+      padding-right: 16px;
+    }
+
+    .week-date strong {
+      display: block;
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+
+    .week-date span,
+    .week-status span {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .week h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .week ul {
+      margin: 0;
+      padding-left: 18px;
+      color: #344054;
+    }
+
+    .week-status {
+      align-self: start;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .week-status strong {
+      display: block;
+      margin-top: 5px;
+      color: var(--brand);
+    }
+
+    .notes-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .note {
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #fbfcff;
+    }
+
+    .note h3 {
+      margin: 0 0 8px;
+      font-size: 17px;
+    }
+
+    .note p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .checklist {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .check-item {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .box {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--brand);
+      border-radius: 4px;
+      margin-top: 2px;
+      background: #ffffff;
+    }
+
+    .check-item strong {
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .check-item span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      border: 1px solid var(--line);
+      background: #ffffff;
+    }
+
+    .tag.success {
+      color: var(--success);
+      background: var(--success-soft);
+      border-color: #b8e5ce;
+    }
+
+    .tag.warning {
+      color: var(--warning);
+      background: var(--warning-soft);
+      border-color: #ffdca3;
+    }
+
+    .tag.danger {
+      color: var(--danger);
+      background: var(--danger-soft);
+      border-color: #ffc8c2;
+    }
+
+    footer {
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+      padding: 10px 0 0;
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+      }
+
+      .page {
+        width: 100%;
+        padding: 0;
+      }
+
+      .hero-main,
+      .hero-card,
+      .panel,
+      .stat {
+        box-shadow: none;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .hero,
+      .stats,
+      .notes-grid,
+      .checklist,
+      .project-header {
+        grid-template-columns: 1fr;
+      }
+
+      .week {
+        grid-template-columns: 1fr;
+      }
+
+      .week-date {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        padding: 0 0 12px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        background: #ffffff;
+      }
+
+      .page {
+        width: 100%;
+        padding: 12px;
+      }
+
+      .hero {
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .hero-main,
+      .hero-card,
+      .panel,
+      .stat {
+        box-shadow: none;
+      }
+
+      .hero-main,
+      .hero-card,
+      .panel {
+        border-radius: 8px;
+      }
+
+      .hero-main {
+        padding: 18px;
+      }
+
+      .hero-main h1 {
+        font-size: 30px;
+        line-height: 1.12;
+      }
+
+      .hero-main p {
+        font-size: 15px;
+      }
+
+      .eyebrow {
+        margin-bottom: 10px;
+        font-size: 11px;
+      }
+
+      .hero-card {
+        padding: 16px;
+      }
+
+      .deadline {
+        padding: 14px;
+      }
+
+      .deadline strong {
+        font-size: 24px;
+      }
+
+      .stats {
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .stat {
+        padding: 14px;
+      }
+
+      .stat strong {
+        font-size: 22px;
+      }
+
+      .tabs {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        overflow-x: visible;
+        padding: 10px;
+        margin: 0 -12px 12px;
+        border-right: 0;
+        border-left: 0;
+        border-radius: 0;
+      }
+
+      .tab-button {
+        width: 100%;
+        min-width: 0;
+        padding: 10px 8px;
+        white-space: normal;
+        text-align: center;
+        font-size: 13px;
+        line-height: 1.2;
+      }
+
+      .panel {
+        padding: 16px;
+        margin-bottom: 12px;
+      }
+
+      .panel h2,
+      .project-header h2 {
+        font-size: 21px;
+      }
+
+      .panel > p,
+      .project-header p {
+        font-size: 14px;
+      }
+
+      .project-header {
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .project-status {
+        padding: 12px;
+      }
+
+      .project-status strong {
+        font-size: 17px;
+      }
+
+      .timeline {
+        gap: 10px;
+      }
+
+      .week {
+        gap: 12px;
+        padding: 14px;
+      }
+
+      .week-date {
+        padding-bottom: 10px;
+      }
+
+      .week-date strong {
+        font-size: 17px;
+      }
+
+      .week-date span,
+      .week-status span,
+      .deadline span,
+      .stat span {
+        font-size: 11px;
+      }
+
+      .week h3 {
+        font-size: 17px;
+        line-height: 1.25;
+      }
+
+      .week ul {
+        padding-left: 16px;
+        font-size: 14px;
+      }
+
+      .week li + li {
+        margin-top: 5px;
+      }
+
+      .week-status {
+        padding: 10px;
+      }
+
+      .note,
+      .check-item {
+        padding: 13px;
+      }
+
+      .note h3 {
+        font-size: 16px;
+      }
+
+      .note p,
+      .check-item span {
+        font-size: 14px;
+      }
+
+      .check-item {
+        grid-template-columns: 22px minmax(0, 1fr);
+      }
+
+      .box {
+        width: 18px;
+        height: 18px;
+      }
+
+      .legend {
+        gap: 8px;
+      }
+
+      .tag {
+        width: 100%;
+        justify-content: center;
+        text-align: center;
+      }
+
+      footer {
+        padding: 4px 10px 0;
+      }
+    }
+
+    @media (max-width: 380px) {
+      .page {
+        padding: 8px;
+      }
+
+      .tabs {
+        grid-template-columns: 1fr;
+        margin-right: -8px;
+        margin-left: -8px;
+      }
+
+      .hero-main h1 {
+        font-size: 27px;
+      }
+
+      .panel,
+      .hero-main,
+      .hero-card {
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div class="hero-main">
+        <span class="eyebrow">Cronograma comercial do MVP</span>
+        <h1>Calendario AtlasNex para organizar os produtos rumo ao piloto</h1>
+        <p>
+          Planejamento de finalizacao do MVP com foco em estabilidade, seguranca, documentos,
+          relatorios e material de implantacao para apresentar o produto a uma prefeitura piloto.
+        </p>
+      </div>
+      <aside class="hero-card" aria-label="Resumo da deadline">
+        <div class="deadline">
+          <span>Deadline final</span>
+          <strong>17/07/2026</strong>
+        </div>
+        <div>
+          <strong>Inicio:</strong> segunda-feira, 22/06/2026<br />
+          <strong>Ritmo:</strong> segunda a sexta<br />
+          <strong>Regra:</strong> sabados e domingos reservados para descanso ou emergencia critica.
+        </div>
+      </aside>
+    </section>
+
+    <section class="stats" aria-label="Indicadores do plano">
+      <article class="stat">
+        <span>Duracao</span>
+        <strong>20 dias uteis</strong>
+      </article>
+      <article class="stat">
+        <span>Foco</span>
+        <strong>MVP vendavel</strong>
+      </article>
+      <article class="stat">
+        <span>Entrega</span>
+        <strong>Piloto comercial</strong>
+      </article>
+    </section>
+
+    <nav class="tabs" aria-label="Produtos AtlasNex no calendario">
+      <button class="tab-button active" type="button" data-tab="geral">Visao geral</button>
+      <button class="tab-button" type="button" data-tab="atlasflow">Planner / AtlasFlow</button>
+      <button class="tab-button" type="button" data-tab="hermes">Hermes Premium</button>
+      <button class="tab-button" type="button" data-tab="icaro">Icaro</button>
+      <button class="tab-button" type="button" data-tab="argos">Argos</button>
+      <button class="tab-button" type="button" data-tab="fiscalbot">FiscalBot</button>
+      <button class="tab-button" type="button" data-tab="atlasnex">AtlasNex Hub</button>
+    </nav>
+
+    <section id="geral" class="tab-panel active">
+      <section class="panel">
+        <div class="project-header">
+          <div>
+            <h2>Visao Geral</h2>
+            <p>Calendario consolidado dos produtos AtlasNex, com foco em chegar ao primeiro MVP vendavel.</p>
+          </div>
+          <div class="project-status">
+            <span>Deadline</span>
+            <strong>17/07/2026</strong>
+          </div>
+        </div>
+
+        <div class="timeline">
+          <article class="week">
+            <div class="week-date">
+              <span>Semana 1</span>
+              <strong>22/06 a 26/06</strong>
+              <span>Fundacao</span>
+            </div>
+            <div>
+              <h3>AtlasFlow como produto base</h3>
+              <ul>
+                <li>Estabilizar producao, homologacao, backup e rede local.</li>
+                <li>Fechar usuarios, permissao de administrador e senha protegida.</li>
+                <li>Definir como os demais produtos se conectam ao AtlasFlow.</li>
+                <li>Separar o que entra no MVP e o que fica para V2.</li>
+              </ul>
+            </div>
+            <div class="week-status">
+              <span>Meta da semana</span>
+              <strong>Base AtlasNex organizada</strong>
+            </div>
+          </article>
+
+          <article class="week">
+            <div class="week-date">
+              <span>Semana 2</span>
+              <strong>29/06 a 03/07</strong>
+              <span>Produtos operacionais</span>
+            </div>
+            <div>
+              <h3>Fluxos principais por produto</h3>
+              <ul>
+                <li>Planner/AtlasFlow: processos, Kanban, prazos e historico.</li>
+                <li>Hermes Premium: inteligencia de oportunidades no PNCP.</li>
+                <li>Icaro: pesquisa de mercado, cesta de precos e memoria de calculo.</li>
+                <li>Argos: minutas de ETP, TR e edital com revisao humana.</li>
+                <li>FiscalBot: monitoramento de contratos, atas, riscos e vigencias.</li>
+              </ul>
+            </div>
+            <div class="week-status">
+              <span>Meta da semana</span>
+              <strong>Produtos demonstraveis</strong>
+            </div>
+          </article>
+
+          <article class="week">
+            <div class="week-date">
+              <span>Semana 3</span>
+              <strong>06/07 a 10/07</strong>
+              <span>Empacotamento</span>
+            </div>
+            <div>
+              <h3>Documentos, relatorios e demonstracao</h3>
+              <ul>
+                <li>Fechar modelos profissionais em PDF/DOCX.</li>
+                <li>Preparar painel de relatorios para venda.</li>
+                <li>Montar roteiro comercial do ecossistema AtlasNex.</li>
+                <li>Validar dados reais sem afetar a producao.</li>
+              </ul>
+            </div>
+            <div class="week-status">
+              <span>Meta da semana</span>
+              <strong>Oferta comercial clara</strong>
+            </div>
+          </article>
+
+          <article class="week">
+            <div class="week-date">
+              <span>Semana 4</span>
+              <strong>13/07 a 17/07</strong>
+              <span>Entrega final</span>
+            </div>
+            <div>
+              <h3>Release do portifolio MVP</h3>
+              <ul>
+                <li>Congelar AtlasFlow como produto principal do piloto.</li>
+                <li>Apresentar Hermes, Icaro, Argos e FiscalBot como produtos do ecossistema.</li>
+                <li>Atualizar manual, calendario, proposta e checklist de implantacao.</li>
+                <li>Separar backlog da V2 online.</li>
+              </ul>
+            </div>
+            <div class="week-status">
+              <span>Meta da semana</span>
+              <strong>MVP pronto para piloto</strong>
+            </div>
+          </article>
+        </div>
+      </section>
+    </section>
+
+    <section id="atlasflow" class="tab-panel">
+      <section class="panel">
+        <div class="project-header">
+          <div>
+            <h2>Produto: Planner / AtlasFlow</h2>
+            <p>Produto principal para acompanhamento da vida dos processos administrativos.</p>
+          </div>
+          <div class="project-status">
+            <span>Entrega</span>
+            <strong>Operacao pronta</strong>
+          </div>
+        </div>
+        <div class="timeline">
+          <article class="week"><div class="week-date"><span>Semana 1</span><strong>22/06 a 26/06</strong><span>Fundacao</span></div><div><h3>Fechar estabilidade do produto</h3><ul><li>Revisar cadastro, edicao, exclusao e movimentacao.</li><li>Validar dados reais importados e preservados.</li><li>Corrigir mensagens, campos obrigatorios e comportamento de refresh.</li></ul></div><div class="week-status"><span>Saida</span><strong>Produto confiavel</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 2</span><strong>29/06 a 03/07</strong><span>Fluxo</span></div><div><h3>Refinar Kanban e lista de processos</h3><ul><li>Testar personalizacao de colunas.</li><li>Garantir limite visual e rolagem do Kanban.</li><li>Conferir historico por processo e filtros.</li></ul></div><div class="week-status"><span>Saida</span><strong>Uso diario fluido</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 3</span><strong>06/07 a 10/07</strong><span>Acabamento</span></div><div><h3>Polir experiencia de demonstracao</h3><ul><li>Revisar textos, nomes e consistencia visual.</li><li>Preparar massa de dados limpa para demo.</li><li>Validar acessibilidade basica e visual em tela menor.</li></ul></div><div class="week-status"><span>Saida</span><strong>Demonstração segura</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 4</span><strong>13/07 a 17/07</strong><span>Release</span></div><div><h3>Congelar MVP</h3><ul><li>Testar fluxo completo do usuario.</li><li>Criar backup final e versao marcada.</li><li>Separar lista de melhorias para V2.</li></ul></div><div class="week-status"><span>Saida</span><strong>MVP fechado</strong></div></article>
+        </div>
+      </section>
+    </section>
+
+    <section id="hermes" class="tab-panel">
+      <section class="panel">
+        <div class="project-header">
+          <div>
+            <h2>Produto: Hermes Premium</h2>
+            <p>Robo de inteligencia comercial para coletar oportunidades no PNCP, filtrar relevancia e gerar relatorios para prospeccao.</p>
+          </div>
+          <div class="project-status">
+            <span>Entrega</span>
+            <strong>Oportunidades PNCP</strong>
+          </div>
+        </div>
+        <div class="timeline">
+          <article class="week"><div class="week-date"><span>Semana 1</span><strong>22/06 a 26/06</strong><span>Diagnostico</span></div><div><h3>Conferir estado do Hermes</h3><ul><li>Validar coleta PNCP e filtros por palavras-chave.</li><li>Conferir relatorio Excel e campos comerciais.</li><li>Revisar documentacao de instalacao e demo.</li></ul></div><div class="week-status"><span>Saida</span><strong>Base revisada</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 2</span><strong>29/06 a 03/07</strong><span>Produto</span></div><div><h3>Polir uso comercial</h3><ul><li>Melhorar classificacao de relevancia.</li><li>Padronizar resumo, risco e acao sugerida.</li><li>Separar perfis de busca por segmento.</li></ul></div><div class="week-status"><span>Saida</span><strong>Relatorio vendavel</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 3</span><strong>06/07 a 10/07</strong><span>Demo</span></div><div><h3>Preparar demonstracao assistida</h3><ul><li>Gerar massa de oportunidades exemplo.</li><li>Montar roteiro de prospeccao.</li><li>Validar abertura em maquina limpa.</li></ul></div><div class="week-status"><span>Saida</span><strong>Demo pronta</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 4</span><strong>13/07 a 17/07</strong><span>Oferta</span></div><div><h3>Fechar pacote Hermes Premium</h3><ul><li>Definir plano comercial e limites de uso.</li><li>Atualizar manual de usuario.</li><li>Colocar Hermes como produto de inteligencia comercial AtlasNex.</li></ul></div><div class="week-status"><span>Saida</span><strong>Hermes apresentavel</strong></div></article>
+        </div>
+      </section>
+    </section>
+
+    <section id="icaro" class="tab-panel">
+      <section class="panel">
+        <div class="project-header">
+          <div>
+            <h2>Produto: Icaro</h2>
+            <p>Ferramenta de pesquisa de mercado e formacao de cesta de precos com rastreabilidade por item, fonte e memoria de calculo.</p>
+          </div>
+          <div class="project-status">
+            <span>Entrega</span>
+            <strong>Pesquisa de precos</strong>
+          </div>
+        </div>
+        <div class="timeline">
+          <article class="week"><div class="week-date"><span>Semana 1</span><strong>22/06 a 26/06</strong><span>Base</span></div><div><h3>Validar jornada de itens</h3><ul><li>Cadastro individual e importacao por linhas.</li><li>Termos de busca por item.</li><li>Vinculo entre item, fonte, valor e origem.</li></ul></div><div class="week-status"><span>Saida</span><strong>Cesta estruturada</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 2</span><strong>29/06 a 03/07</strong><span>Calculo</span></div><div><h3>Refinar pesquisa e memoria</h3><ul><li>Busca PNCP por termo, periodo, UF e modalidade.</li><li>Media, mediana e tratamento de outliers.</li><li>Checklist administrativo por item.</li></ul></div><div class="week-status"><span>Saida</span><strong>Memoria confiavel</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 3</span><strong>06/07 a 10/07</strong><span>Relatorio</span></div><div><h3>Fechar entregaveis</h3><ul><li>Relatorio administrativo em HTML, DOCX e XLSX.</li><li>Quadro comparativo e comparabilidade.</li><li>Exemplo com cesta realista.</li></ul></div><div class="week-status"><span>Saida</span><strong>Relatorio pronto</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 4</span><strong>13/07 a 17/07</strong><span>GovLab</span></div><div><h3>Empacotar Icaro GovLab</h3><ul><li>Revisar landing, login e area de trabalho.</li><li>Atualizar plano de produto.</li><li>Posicionar como produto de pesquisa de precos AtlasNex.</li></ul></div><div class="week-status"><span>Saida</span><strong>Icaro vendavel</strong></div></article>
+        </div>
+      </section>
+    </section>
+
+    <section id="argos" class="tab-panel">
+      <section class="panel">
+        <div class="project-header">
+          <div>
+            <h2>Produto: Argos</h2>
+            <p>Produto AtlasNex para elaboracao inicial de documentos de contratacao, como ETP, TR e edital, com apoio de IA e revisao humana.</p>
+          </div>
+          <div class="project-status">
+            <span>Entrega</span>
+            <strong>Minutas inteligentes</strong>
+          </div>
+        </div>
+        <div class="timeline">
+          <article class="week"><div class="week-date"><span>Semana 1</span><strong>22/06 a 26/06</strong><span>Processo</span></div><div><h3>Revisar cadastro e estrutura</h3><ul><li>Cadastro de processo licitatorio.</li><li>Itens, quantidades e justificativas.</li><li>Status: rascunho, gerado e revisado.</li></ul></div><div class="week-status"><span>Saida</span><strong>Entrada organizada</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 2</span><strong>29/06 a 03/07</strong><span>IA</span></div><div><h3>Validar geracao de minutas</h3><ul><li>ETP com base na Lei 14.133/2021.</li><li>Termo de Referencia.</li><li>Minuta de edital e prompt estruturado.</li></ul></div><div class="week-status"><span>Saida</span><strong>Minutas geradas</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 3</span><strong>06/07 a 10/07</strong><span>Revisao</span></div><div><h3>Polir revisao humana</h3><ul><li>Editor simples no navegador.</li><li>Salvamento de alteracoes.</li><li>Copia de texto e exportacao DOCX.</li></ul></div><div class="week-status"><span>Saida</span><strong>Revisao fluida</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 4</span><strong>13/07 a 17/07</strong><span>Venda</span></div><div><h3>Fechar demonstracao Argos</h3><ul><li>Revisar aviso de validacao humana.</li><li>Preparar exemplo completo.</li><li>Posicionar como produto premium de fase preparatoria.</li></ul></div><div class="week-status"><span>Saida</span><strong>Argos pronto para demo</strong></div></article>
+        </div>
+      </section>
+    </section>
+
+    <section id="fiscalbot" class="tab-panel">
+      <section class="panel">
+        <div class="project-header">
+          <div>
+            <h2>Produto: FiscalBot</h2>
+            <p>Plataforma de inteligencia analitica e monitoramento estrategico para contratos, atas, fornecedores, vigencias, valores e riscos.</p>
+          </div>
+          <div class="project-status">
+            <span>Entrega</span>
+            <strong>Monitoramento publico</strong>
+          </div>
+        </div>
+        <div class="timeline">
+          <article class="week"><div class="week-date"><span>Semana 1</span><strong>22/06 a 26/06</strong><span>Ambiente</span></div><div><h3>Validar stack de operacao</h3><ul><li>Docker, Postgres, Redis, API e frontend.</li><li>Seed de usuarios e perfis.</li><li>Fluxo de inicializacao e parada.</li></ul></div><div class="week-status"><span>Saida</span><strong>Ambiente sobe</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 2</span><strong>29/06 a 03/07</strong><span>Contratos</span></div><div><h3>Revisar nucleo funcional</h3><ul><li>Contratos, atas e fornecedores.</li><li>Vigencias, valores e responsaveis.</li><li>Perfis admin, gestor, fiscal e auditor.</li></ul></div><div class="week-status"><span>Saida</span><strong>Monitoramento funcional</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 3</span><strong>06/07 a 10/07</strong><span>Riscos</span></div><div><h3>Fortalecer vigilancia inteligente</h3><ul><li>Sinais de inconformidade.</li><li>Alertas de vencimento e vigencia.</li><li>Trilha de auditoria e leitura ampla.</li></ul></div><div class="week-status"><span>Saida</span><strong>Risco visivel</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 4</span><strong>13/07 a 17/07</strong><span>Oferta</span></div><div><h3>Preparar FiscalBot para apresentacao</h3><ul><li>Dados de demonstracao.</li><li>Roteiro por perfil de usuario.</li><li>Posicionamento como produto de controle e fiscalizacao.</li></ul></div><div class="week-status"><span>Saida</span><strong>FiscalBot demonstravel</strong></div></article>
+        </div>
+      </section>
+    </section>
+
+    <section id="atlasnex" class="tab-panel">
+      <section class="panel">
+        <div class="project-header">
+          <div>
+            <h2>Produto: AtlasNex Hub</h2>
+            <p>Camada institucional e comercial que organiza o ecossistema, proposta, pilotos e proximas versoes.</p>
+          </div>
+          <div class="project-status">
+            <span>Entrega</span>
+            <strong>Portfolio vendavel</strong>
+          </div>
+        </div>
+        <div class="timeline">
+          <article class="week"><div class="week-date"><span>Semana 1</span><strong>22/06 a 26/06</strong><span>Marca</span></div><div><h3>Organizar arquitetura do portfolio</h3><ul><li>Definir AtlasNex como marca guarda-chuva.</li><li>Posicionar AtlasFlow como primeiro produto.</li><li>Nomear produtos satelites e suas promessas.</li></ul></div><div class="week-status"><span>Saida</span><strong>Portfolio coerente</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 2</span><strong>29/06 a 03/07</strong><span>Comercial</span></div><div><h3>Montar roteiro de venda</h3><ul><li>Demo de 15 minutos.</li><li>Problemas resolvidos por produto.</li><li>Planos Starter, Equipe e Prefeitura.</li></ul></div><div class="week-status"><span>Saida</span><strong>Narrativa pronta</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 3</span><strong>06/07 a 10/07</strong><span>Piloto</span></div><div><h3>Definir oferta piloto</h3><ul><li>Escopo do piloto em prefeitura pequena.</li><li>Checklist de implantacao.</li><li>Rotina de suporte, backup e treinamento.</li></ul></div><div class="week-status"><span>Saida</span><strong>Piloto formatado</strong></div></article>
+          <article class="week"><div class="week-date"><span>Semana 4</span><strong>13/07 a 17/07</strong><span>Release</span></div><div><h3>Fechar pacote AtlasNex</h3><ul><li>Manual, calendario, proposta e apresentacao.</li><li>Backlog V2 online e SaaS.</li><li>Versao final congelada para venda.</li></ul></div><div class="week-status"><span>Saida</span><strong>AtlasNex pronto para piloto</strong></div></article>
+        </div>
+      </section>
+    </section>
+
+    <section class="panel">
+      <h2>Observacoes</h2>
+      <p>Regras de condução para evitar retrabalho e proteger os dados usados por pessoas em teste.</p>
+      <div class="notes-grid">
+        <article class="note">
+          <h3>Homologacao primeiro</h3>
+          <p>Toda alteracao deve nascer na homologacao, ser testada com copia da base e so depois ir para producao.</p>
+        </article>
+        <article class="note">
+          <h3>Dados preservados</h3>
+          <p>Antes de cada implantacao, criar backup do SQLite e confirmar contagem de usuarios, processos e historicos.</p>
+        </article>
+        <article class="note">
+          <h3>Escopo fechado</h3>
+          <p>Ate 17/07, novas ideias entram em lista de V2, salvo se forem essenciais para vender o piloto.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Comentarios de Produto</h2>
+      <p>Pontos que ajudam cada produto AtlasNex a parecer menos prototipo e mais solucao pronta para implantacao.</p>
+      <div class="notes-grid">
+        <article class="note">
+          <h3>Venda pela dor</h3>
+          <p>Demonstrar onde esta o processo, com quem esta, ha quanto tempo esta parado e qual o proximo passo.</p>
+        </article>
+        <article class="note">
+          <h3>Menos funcao, mais clareza</h3>
+          <p>O diferencial do MVP deve ser rastreabilidade simples, visual e rapida, sem parecer um sistema pesado.</p>
+        </article>
+        <article class="note">
+          <h3>Piloto controlado</h3>
+          <p>O primeiro cliente deve validar rotina real, documentos, prazos e relatorios antes de qualquer V2 online.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Checklist de Fechamento</h2>
+      <p>Lista objetiva para marcar durante o caminho ate a deadline.</p>
+      <div class="checklist">
+        <div class="check-item">
+          <span class="box" aria-hidden="true"></span>
+          <div>
+            <strong>Backup automatico validado</strong>
+            <span>Arquivo criado, restauravel e localizado em pasta conhecida.</span>
+          </div>
+        </div>
+        <div class="check-item">
+          <span class="box" aria-hidden="true"></span>
+          <div>
+            <strong>Usuarios com permissao</strong>
+            <span>Administrador separado de usuarios comuns.</span>
+          </div>
+        </div>
+        <div class="check-item">
+          <span class="box" aria-hidden="true"></span>
+          <div>
+            <strong>Senhas protegidas</strong>
+            <span>Senha salva com hash e tela de alteracao pronta.</span>
+          </div>
+        </div>
+        <div class="check-item">
+          <span class="box" aria-hidden="true"></span>
+          <div>
+            <strong>Kanban personalizavel testado</strong>
+            <span>Ordem e visibilidade de colunas funcionando por usuario.</span>
+          </div>
+        </div>
+        <div class="check-item">
+          <span class="box" aria-hidden="true"></span>
+          <div>
+            <strong>Historico por processo validado</strong>
+            <span>Linha do tempo mostrando a vida do processo.</span>
+          </div>
+        </div>
+        <div class="check-item">
+          <span class="box" aria-hidden="true"></span>
+          <div>
+            <strong>Cotas finais revisadas</strong>
+            <span>Devolucao, encaminhamento, juridico e saneamento.</span>
+          </div>
+        </div>
+        <div class="check-item">
+          <span class="box" aria-hidden="true"></span>
+          <div>
+            <strong>PDF e DOCX profissionais</strong>
+            <span>Exportacao com layout institucional e conteudo correto.</span>
+          </div>
+        </div>
+        <div class="check-item">
+          <span class="box" aria-hidden="true"></span>
+          <div>
+            <strong>Relatorios comerciais prontos</strong>
+            <span>Secretaria, usuario, atraso, conclusao e produtividade.</span>
+          </div>
+        </div>
+        <div class="check-item">
+          <span class="box" aria-hidden="true"></span>
+          <div>
+            <strong>Manual definitivo atualizado</strong>
+            <span>Manual de uso, implantacao, backup e rotina diaria.</span>
+          </div>
+        </div>
+        <div class="check-item">
+          <span class="box" aria-hidden="true"></span>
+          <div>
+            <strong>Release final separado</strong>
+            <span>Versao final do MVP congelada para demonstracao e piloto.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span class="tag success">Verde: pronto para venda</span>
+        <span class="tag warning">Amarelo: revisar antes do piloto</span>
+        <span class="tag danger">Vermelho: bloqueia implantacao</span>
+      </div>
+    </section>
+
+    <footer>
+      AtlasNex - calendario de produtos gerado em 18/06/2026. Prazo final: 17/07/2026.
+    </footer>
+  </main>
+  <script>
+    const tabButtons = document.querySelectorAll(".tab-button");
+    const tabPanels = document.querySelectorAll(".tab-panel");
+
+    tabButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const target = button.dataset.tab;
+
+        tabButtons.forEach((item) => {
+          item.classList.toggle("active", item === button);
+        });
+
+        tabPanels.forEach((panel) => {
+          panel.classList.toggle("active", panel.id === target);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

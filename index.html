@@ -4,9 +4,31 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AtlasFlow | Controle de Processos</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=20260618-kanban-settings" />
 </head>
 <body>
+  <section id="loginScreen" class="login-screen hidden" aria-label="Login">
+    <form id="loginForm" class="login-card">
+      <div class="brand login-brand">
+        <div class="brand-mark">AF</div>
+        <div>
+          <h1>AtlasFlow</h1>
+          <p>Acesse sua mesa de processos.</p>
+        </div>
+      </div>
+      <label>
+        Usuario
+        <select name="userId" id="loginUserSelect"></select>
+      </label>
+      <label>
+        Senha
+        <input name="password" type="password" placeholder="Deixe em branco se ainda nao foi definida" />
+      </label>
+      <p id="loginStatus" class="form-hint">Nesta fase, usuarios sem senha cadastrada entram com senha em branco.</p>
+      <button class="primary full" type="submit">Entrar</button>
+    </form>
+  </section>
+
   <header class="app-header">
     <div class="header-main">
       <div class="brand">
@@ -40,7 +62,10 @@
           Alternar usuario
           <select id="userSelect"></select>
         </label>
+        <button type="button" id="refreshDataBtn">Atualizar</button>
+        <button type="button" id="manageUsersBtn">Gerenciar usuarios</button>
         <button type="button" id="newUserBtn">Novo usuario</button>
+        <button type="button" id="logoutBtn">Sair</button>
       </div>
     </section>
 
@@ -65,6 +90,28 @@
         <strong id="metricDone">0</strong>
         <small>Processos enviados ou finalizados.</small>
       </article>
+    </section>
+
+    <section class="executive-panel" aria-label="Resumo executivo">
+      <div>
+        <span class="eyebrow">Saude da operacao</span>
+        <strong id="operationHealth">Sem dados suficientes</strong>
+        <p id="operationInsight">Cadastre processos para gerar leitura gerencial da mesa.</p>
+      </div>
+      <div class="executive-grid">
+        <article>
+          <span>Tempo medio em aberto</span>
+          <strong id="metricAvgAge">0 dias</strong>
+        </article>
+        <article>
+          <span>Proximos 7 dias</span>
+          <strong id="metricDueSoon">0</strong>
+        </article>
+        <article>
+          <span>Taxa de conclusao</span>
+          <strong id="metricCompletion">0%</strong>
+        </article>
+      </div>
     </section>
 
     <section class="toolbar" aria-label="Filtros">
@@ -97,6 +144,9 @@
           <div>
             <h2>Kanban operacional</h2>
             <p>Arraste mentalmente o fluxo: entrada, analise, criacao documental, revisao, devolucao e conclusao.</p>
+          </div>
+          <div class="view-actions">
+            <button type="button" id="customizeKanbanBtn">Personalizar</button>
           </div>
         </div>
         <div class="kanban" id="kanban"></div>
@@ -138,6 +188,32 @@
           <button class="primary full" type="submit">Registrar entrada</button>
         </form>
       </aside>
+    </section>
+
+    <section class="reports-grid" aria-label="Relatorios gerenciais">
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Relatorio executivo</h2>
+            <p>Resumo pronto para reuniao, acompanhamento interno ou demonstracao comercial.</p>
+          </div>
+          <div class="view-actions">
+            <button type="button" id="printReportBtn">Imprimir</button>
+            <button type="button" id="exportCsvBtn">Exportar CSV</button>
+          </div>
+        </div>
+        <div id="executiveReport" class="executive-report"></div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Gargalos e prazos</h2>
+            <p>Onde os processos estao parados e quais exigem prioridade.</p>
+          </div>
+        </div>
+        <div id="bottleneckReport" class="bottleneck-report"></div>
+      </article>
     </section>
 
     <section class="panel list-panel">
@@ -240,6 +316,15 @@
           Observacoes e pendencias
           <textarea name="notes"></textarea>
         </label>
+        <section class="wide process-timeline-section" aria-label="Historico do processo">
+          <div class="process-timeline-head">
+            <div>
+              <h3>Historico do processo</h3>
+              <p>Linha do tempo somente leitura para acompanhar a vida deste processo.</p>
+            </div>
+          </div>
+          <div id="processTimeline" class="process-timeline"></div>
+        </section>
       </div>
       <div class="modal-actions">
         <button type="button" id="cancelProcessBtn">Cancelar</button>
@@ -287,12 +372,32 @@
     </form>
   </dialog>
 
+  <dialog id="kanbanSettingsDialog">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <h2>Personalizar Kanban</h2>
+          <p>Organize a ordem das colunas ou oculte etapas que nao quer ver no quadro.</p>
+        </div>
+        <button type="button" class="icon-button" id="closeKanbanSettingsDialog" aria-label="Fechar">x</button>
+      </div>
+      <div id="kanbanSettingsList" class="kanban-settings-list"></div>
+      <div class="tip-box compact-tip">
+        Processos em colunas ocultas continuam salvos e aparecem na lista, nos filtros e nos relatorios.
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="resetKanbanSettingsBtn">Restaurar padrao</button>
+        <button type="button" id="doneKanbanSettingsBtn" class="primary">Aplicar</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="cotaDialog">
     <form method="dialog" class="modal-card cota-modal" id="cotaForm">
       <div class="modal-head">
         <div>
-          <h2>Gerar cota de devolucao</h2>
-          <p>Use os dados do processo, marque os motivos e ajuste o texto antes de copiar.</p>
+          <h2>Gerar documento padronizado</h2>
+          <p>Escolha um modelo, revise o texto e exporte para instruir o processo.</p>
         </div>
         <button type="button" class="icon-button" id="closeCotaDialog" aria-label="Fechar">x</button>
       </div>
@@ -300,8 +405,12 @@
       <div class="cota-grid">
         <section class="cota-options">
           <div class="form-grid">
+            <label class="wide">
+              Modelo do documento
+              <select name="documentType" id="documentTypeSelect"></select>
+            </label>
             <label>
-              Destino da devolucao
+              Destino
               <input name="destination" placeholder="Secretaria requisitante" />
             </label>
             <label>
@@ -319,7 +428,7 @@
           </div>
 
           <fieldset class="cota-reasons-box">
-            <legend>Motivos da devolucao</legend>
+            <legend>Motivos e pendencias</legend>
             <div id="cotaReasons" class="cota-reasons"></div>
           </fieldset>
 
@@ -333,18 +442,29 @@
             Observacoes complementares
             <textarea name="extraNotes" placeholder="Informe orientacoes adicionais para saneamento, se necessario."></textarea>
           </label>
+
+          <label>
+            Editar modelo selecionado
+            <textarea name="templateText" class="template-editor" placeholder="Use variaveis como {{processo}}, {{objeto}}, {{motivos}} e {{assinatura}}."></textarea>
+          </label>
+          <div class="template-actions">
+            <button type="button" id="saveTemplateBtn">Salvar modelo</button>
+            <button type="button" id="resetTemplateBtn">Restaurar padrao</button>
+          </div>
         </section>
 
         <section class="cota-preview">
           <label>
-            Previa da cota
+            Previa do documento
             <textarea id="cotaOutput" readonly></textarea>
           </label>
         </section>
       </div>
       <div class="modal-actions">
         <button type="button" id="cancelCotaBtn">Fechar</button>
-        <button type="button" id="copyCotaBtn" class="primary">Copiar cota</button>
+        <button type="button" id="exportDocBtn">Exportar DOCX</button>
+        <button type="button" id="exportPdfBtn">Exportar PDF</button>
+        <button type="button" id="copyCotaBtn" class="primary">Copiar texto</button>
       </div>
     </form>
   </dialog>
@@ -376,10 +496,10 @@
           <input name="role" placeholder="Operador, Revisor, Gestor..." />
         </label>
         <label class="wide">
-          Senha futura
-          <input name="password" type="password" placeholder="Opcional nesta versao local" />
+          Senha
+          <input name="password" type="password" placeholder="Opcional: usada para entrar neste usuario" />
         </label>
-        <p class="wide form-hint">A senha fica preparada no cadastro para a futura versao com login. Nesta versao local, a troca de usuario continua livre.</p>
+        <p class="wide form-hint">Se ficar em branco, o usuario entra sem senha. Israel Junior pode alterar depois em Gerenciar usuarios.</p>
       </div>
       <div class="modal-actions">
         <button type="button" id="cancelUserBtn">Cancelar</button>
@@ -388,6 +508,22 @@
     </form>
   </dialog>
 
-  <script src="app.js?v=20260617-users-auth"></script>
+  <dialog id="manageUsersDialog">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <h2>Gerenciar usuarios</h2>
+          <p>Defina senhas de acesso e exclua apenas usuarios sem processos vinculados.</p>
+        </div>
+        <button type="button" class="icon-button" id="closeManageUsersDialog" aria-label="Fechar">x</button>
+      </div>
+      <div id="manageUsersList" class="manage-users-list"></div>
+      <div class="modal-actions">
+        <button type="button" id="doneManageUsersBtn">Fechar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="app.js?v=20260618-kanban-settings"></script>
 </body>
 </html>
