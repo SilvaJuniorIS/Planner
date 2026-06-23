@@ -7,6 +7,7 @@ import io
 import secrets
 import shutil
 import sqlite3
+import unicodedata
 import uuid
 from contextlib import contextmanager
 from datetime import datetime
@@ -14,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from docx import Document
-from fastapi import FastAPI, HTTPException, Query, status
+from fastapi import FastAPI, Header, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -31,6 +32,7 @@ DB_PATH = Path(os.getenv("ATLASFLOW_DB", DATA_DIR / "atlasflow.sqlite3"))
 
 STATUSES = {"entrada", "analisar", "criar", "revisar", "devolver", "concluido"}
 PRIORITIES = {"normal", "urgente"}
+SESSIONS: dict[str, str] = {}
 
 
 class UserCreate(BaseModel):
@@ -187,6 +189,71 @@ def build_password_fields(password: str) -> tuple[str, str]:
         return "", ""
     salt = secrets.token_hex(16)
     return salt, password_hash(password, salt)
+
+
+def normalize_role(role: str) -> str:
+    normalized = unicodedata.normalize("NFD", role or "")
+    normalized = "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+    return normalized.strip().lower()
+
+
+def is_admin_row(user: sqlite3.Row) -> bool:
+    role = normalize_role(user["role"])
+    return user["id"] == "user-compras" or "administrador" in role or role == "admin"
+
+
+def is_read_only_row(user: sqlite3.Row) -> bool:
+    role = normalize_role(user["role"])
+    return any(marker in role for marker in {"consulta", "visitante", "leitura", "somente leitura"})
+
+
+def require_admin_user(conn: sqlite3.Connection, user_id: str) -> sqlite3.Row:
+    admin = ensure_user(conn, user_id)
+    if not is_admin_row(admin):
+        raise HTTPException(status_code=403, detail="Apenas administradores podem executar esta acao")
+    return admin
+
+
+def bearer_token(authorization: str) -> str:
+    prefix = "Bearer "
+    if not authorization.startswith(prefix):
+        raise HTTPException(status_code=401, detail="Sessao obrigatoria")
+    return authorization[len(prefix):].strip()
+
+
+def require_session_user(conn: sqlite3.Connection, authorization: str) -> sqlite3.Row:
+    token = bearer_token(authorization)
+    user_id = SESSIONS.get(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Sessao invalida ou expirada")
+    return ensure_user(conn, user_id)
+
+
+def require_user_access(conn: sqlite3.Connection, user_id: str, authorization: str) -> sqlite3.Row:
+    session_user = require_session_user(conn, authorization)
+    if session_user["id"] != user_id and not is_admin_row(session_user):
+        raise HTTPException(status_code=403, detail="Usuario sem acesso a esta mesa")
+    return session_user
+
+
+def require_admin_access(conn: sqlite3.Connection, admin_user_id: str, authorization: str) -> sqlite3.Row:
+    session_user = require_session_user(conn, authorization)
+    if session_user["id"] != admin_user_id:
+        raise HTTPException(status_code=403, detail="Sessao nao corresponde ao administrador informado")
+    if not is_admin_row(session_user):
+        raise HTTPException(status_code=403, detail="Apenas administradores podem executar esta acao")
+    return session_user
+
+
+def require_process_access(conn: sqlite3.Connection, process: sqlite3.Row, authorization: str) -> sqlite3.Row:
+    return require_user_access(conn, process["user_id"], authorization)
+
+
+def require_process_write(conn: sqlite3.Connection, process: sqlite3.Row, authorization: str) -> sqlite3.Row:
+    session_user = require_process_access(conn, process, authorization)
+    if is_read_only_row(session_user):
+        raise HTTPException(status_code=403, detail="Perfil permite apenas consulta")
+    return session_user
 
 
 def ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -519,7 +586,9 @@ def clean_filename(value: str, extension: str) -> str:
 
 
 @app.post("/api/documents/export/docx")
-def export_docx(payload: DocumentExport) -> StreamingResponse:
+def export_docx(payload: DocumentExport, authorization: str = Header(default="")) -> StreamingResponse:
+    with db() as conn:
+        require_session_user(conn, authorization)
     document = Document()
     document.add_heading(payload.title, level=1)
     for block in payload.text.split("\n"):
@@ -540,7 +609,9 @@ def export_docx(payload: DocumentExport) -> StreamingResponse:
 
 
 @app.post("/api/documents/export/pdf")
-def export_pdf(payload: DocumentExport) -> StreamingResponse:
+def export_pdf(payload: DocumentExport, authorization: str = Header(default="")) -> StreamingResponse:
+    with db() as conn:
+        require_session_user(conn, authorization)
     output = io.BytesIO()
     doc = SimpleDocTemplate(output, pagesize=A4, rightMargin=48, leftMargin=48, topMargin=54, bottomMargin=54)
     styles = getSampleStyleSheet()
@@ -565,10 +636,11 @@ def list_users() -> list[dict[str, Any]]:
 
 
 @app.post("/api/users", response_model=User, status_code=status.HTTP_201_CREATED)
-def create_user(payload: UserCreate) -> dict[str, Any]:
+def create_user(payload: UserCreate, admin_user_id: str = Query(...), authorization: str = Header(default="")) -> dict[str, Any]:
     user_id = new_id()
     salt, hashed = build_password_fields(payload.password)
     with db() as conn:
+        require_admin_access(conn, admin_user_id, authorization)
         conn.execute(
             "insert into users (id, name, email, department, role, password_hash, password_salt, created_at) values (?, ?, ?, ?, ?, ?, ?, ?)",
             (user_id, payload.name.strip(), payload.email, payload.department, payload.role or "Operador", hashed, salt, now()),
@@ -583,12 +655,10 @@ def get_user(user_id: str) -> dict[str, Any]:
 
 
 @app.patch("/api/users/{user_id}/password", response_model=User)
-def update_user_password(user_id: str, payload: UserPasswordUpdate) -> dict[str, Any]:
-    if payload.admin_user_id != "user-compras":
-        raise HTTPException(status_code=403, detail="Apenas Israel Junior pode alterar senhas")
-
+def update_user_password(user_id: str, payload: UserPasswordUpdate, authorization: str = Header(default="")) -> dict[str, Any]:
     salt, hashed = build_password_fields(payload.password)
     with db() as conn:
+        require_admin_access(conn, payload.admin_user_id, authorization)
         ensure_user(conn, user_id)
         conn.execute(
             "update users set password_hash = ?, password_salt = ? where id = ?",
@@ -598,13 +668,12 @@ def update_user_password(user_id: str, payload: UserPasswordUpdate) -> dict[str,
 
 
 @app.delete("/api/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(user_id: str, admin_user_id: str = Query(...)) -> None:
-    if admin_user_id != "user-compras":
-        raise HTTPException(status_code=403, detail="Apenas Israel Junior pode excluir usuarios")
+def delete_user(user_id: str, admin_user_id: str = Query(...), authorization: str = Header(default="")) -> None:
     if user_id == "user-compras":
         raise HTTPException(status_code=409, detail="O usuario administrador nao pode ser excluido")
 
     with db() as conn:
+        require_admin_access(conn, admin_user_id, authorization)
         ensure_user(conn, user_id)
         process_count = conn.execute(
             "select count(*) as total from processes where user_id = ?",
@@ -616,9 +685,12 @@ def delete_user(user_id: str, admin_user_id: str = Query(...)) -> None:
 
 
 @app.post("/api/import", response_model=ImportResult)
-def import_backup(payload: ImportPayload) -> dict[str, Any]:
+def import_backup(payload: ImportPayload, authorization: str = Header(default="")) -> dict[str, Any]:
     current_user_id = payload.currentUserId or payload.current_user_id
     with db() as conn:
+        session_user = require_session_user(conn, authorization)
+        if not is_admin_row(session_user):
+            raise HTTPException(status_code=403, detail="Apenas administradores podem importar dados")
         user_ids = [upsert_import_user(conn, item) for item in payload.users if isinstance(item, dict)]
         fallback_user_id = current_user_id or (user_ids[0] if user_ids else "user-compras")
         if not conn.execute("select 1 from users where id = ?", (fallback_user_id,)).fetchone():
@@ -653,19 +725,21 @@ def login(payload: AuthLogin) -> dict[str, Any]:
             raise HTTPException(status_code=401, detail="Usuario ainda nao possui senha configurada")
 
         token_seed = f"{user['id']}:{now()}:{secrets.token_hex(16)}"
+        token = hashlib.sha256(token_seed.encode("utf-8")).hexdigest()
+        SESSIONS[token] = user["id"]
         return {
             "user_id": user["id"],
             "name": user["name"],
             "department": user["department"],
             "role": user["role"],
-            "token": hashlib.sha256(token_seed.encode("utf-8")).hexdigest(),
+            "token": token,
         }
 
 
 @app.get("/api/users/{user_id}/processes", response_model=list[Process])
-def list_user_processes(user_id: str) -> list[dict[str, Any]]:
+def list_user_processes(user_id: str, authorization: str = Header(default="")) -> list[dict[str, Any]]:
     with db() as conn:
-        ensure_user(conn, user_id)
+        require_user_access(conn, user_id, authorization)
         rows = conn.execute(
             "select * from processes where user_id = ? order by coalesce(nullif(deadline, ''), '9999-12-31'), created_at",
             (user_id,),
@@ -674,13 +748,15 @@ def list_user_processes(user_id: str) -> list[dict[str, Any]]:
 
 
 @app.post("/api/users/{user_id}/processes", response_model=ProcessWithHistory, status_code=status.HTTP_201_CREATED)
-def create_process(user_id: str, payload: ProcessCreate) -> dict[str, Any]:
+def create_process(user_id: str, payload: ProcessCreate, authorization: str = Header(default="")) -> dict[str, Any]:
     validate_status(payload.status)
     validate_priority(payload.priority)
     process_id = new_id()
     created = now()
     with db() as conn:
-        ensure_user(conn, user_id)
+        session_user = require_user_access(conn, user_id, authorization)
+        if is_read_only_row(session_user):
+            raise HTTPException(status_code=403, detail="Perfil permite apenas consulta")
         conn.execute(
             """
             insert into processes (
@@ -728,17 +804,20 @@ def create_process(user_id: str, payload: ProcessCreate) -> dict[str, Any]:
 
 
 @app.get("/api/processes/{process_id}", response_model=ProcessWithHistory)
-def get_process(process_id: str) -> dict[str, Any]:
+def get_process(process_id: str, authorization: str = Header(default="")) -> dict[str, Any]:
     with db() as conn:
+        process = ensure_process(conn, process_id)
+        require_process_access(conn, process, authorization)
         return get_process_payload(conn, process_id)
 
 
 @app.put("/api/processes/{process_id}", response_model=ProcessWithHistory)
-def update_process(process_id: str, payload: ProcessUpdate) -> dict[str, Any]:
+def update_process(process_id: str, payload: ProcessUpdate, authorization: str = Header(default="")) -> dict[str, Any]:
     validate_status(payload.status)
     validate_priority(payload.priority)
     with db() as conn:
         old = ensure_process(conn, process_id)
+        require_process_write(conn, old, authorization)
         conn.execute(
             """
             update processes
@@ -784,17 +863,19 @@ def update_process(process_id: str, payload: ProcessUpdate) -> dict[str, Any]:
 
 
 @app.delete("/api/processes/{process_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_process(process_id: str) -> None:
+def delete_process(process_id: str, authorization: str = Header(default="")) -> None:
     with db() as conn:
-        ensure_process(conn, process_id)
+        process = ensure_process(conn, process_id)
+        require_process_write(conn, process, authorization)
         conn.execute("delete from processes where id = ?", (process_id,))
 
 
 @app.post("/api/processes/{process_id}/movements", response_model=ProcessWithHistory)
-def move_process(process_id: str, payload: MovementCreate) -> dict[str, Any]:
+def move_process(process_id: str, payload: MovementCreate, authorization: str = Header(default="")) -> dict[str, Any]:
     validate_status(payload.status)
     with db() as conn:
         process = ensure_process(conn, process_id)
+        require_process_write(conn, process, authorization)
         exit_date = payload.date if payload.status in {"devolver", "concluido"} else process["exit_date"]
         to_sector = payload.to if payload.status in {"devolver", "concluido"} else process["to_sector"]
         exit_purpose = payload.purpose if payload.status in {"devolver", "concluido"} else process["exit_purpose"]
@@ -821,9 +902,9 @@ def move_process(process_id: str, payload: MovementCreate) -> dict[str, Any]:
 
 
 @app.get("/api/users/{user_id}/history", response_model=list[HistoryItem])
-def list_user_history(user_id: str) -> list[dict[str, Any]]:
+def list_user_history(user_id: str, authorization: str = Header(default="")) -> list[dict[str, Any]]:
     with db() as conn:
-        ensure_user(conn, user_id)
+        require_user_access(conn, user_id, authorization)
         rows = conn.execute(
             "select * from history where user_id = ? order by date desc, created_at desc",
             (user_id,),

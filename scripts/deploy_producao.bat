@@ -4,7 +4,7 @@ setlocal
 set "PROD=C:\Planner"
 set "HOMOLOG=C:\Planner_Homolog"
 set "PROD_DB=%PROD%\data\atlasflow.sqlite3"
-set "BACKUP_DIR=%PROD%\backups"
+set "BACKUP_DIR=%PROD%\data\backups"
 
 echo.
 echo Publicacao da homologacao para producao
@@ -33,7 +33,7 @@ if exist "%PROD_DB%" (
   set "HH=%HH: =0%"
   set "MIN=%time:~3,2%"
   set "SEC=%time:~6,2%"
-  copy "%PROD_DB%" "%BACKUP_DIR%\pre_deploy_%YYYY%-%MM%-%DD%_%HH%-%MIN%-%SEC%.sqlite3" >nul
+  copy "%PROD_DB%" "%BACKUP_DIR%\pre_deploy_atlasflow_%YYYY%-%MM%-%DD%_%HH%-%MIN%-%SEC%.sqlite3" >nul
 )
 
 robocopy "%HOMOLOG%" "%PROD%" /E /XD data backups .git /XF *.sqlite3 *.sqlite3-* >nul

@@ -155,6 +155,8 @@ const els = {
   refreshDataBtn: document.querySelector("#refreshDataBtn"),
   manageUsersBtn: document.querySelector("#manageUsersBtn"),
   newUserBtn: document.querySelector("#newUserBtn"),
+  newProcessBtn: document.querySelector("#newProcessBtn"),
+  quickForm: document.querySelector("#quickForm"),
   logoutBtn: document.querySelector("#logoutBtn"),
   manageUsersDialog: document.querySelector("#manageUsersDialog"),
   manageUsersList: document.querySelector("#manageUsersList"),
@@ -197,10 +199,12 @@ function apiBaseUrl() {
 }
 
 async function apiRequest(path, options = {}) {
+  const authHeaders = state.authToken ? { Authorization: `Bearer ${state.authToken}` } : {};
   const response = await fetch(`${apiBaseUrl()}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...authHeaders,
       ...(options.headers || {}),
     },
   });
@@ -215,9 +219,10 @@ async function apiRequest(path, options = {}) {
 }
 
 async function apiDownload(path, payload) {
+  const authHeaders = state.authToken ? { Authorization: `Bearer ${state.authToken}` } : {};
   const response = await fetch(`${apiBaseUrl()}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify(payload),
   });
 
@@ -483,7 +488,17 @@ async function loadApiData() {
       : state.users[0]?.id || "";
     state.authToken = sessionToken;
     state.apiOnline = true;
-    await loadAllApiProcesses();
+    if (sessionToken) {
+      try {
+        await loadAllApiProcesses();
+      } catch {
+        clearSession();
+        state.authToken = "";
+        state.processes = [];
+      }
+    } else {
+      state.processes = [];
+    }
     persist();
     return true;
   } catch {
@@ -494,12 +509,19 @@ async function loadApiData() {
 
 async function loadAllApiProcesses() {
   if (!state.apiOnline || !state.users.length) return;
-  const processGroups = await Promise.all(state.users.map(async (user) => {
+  const visibleUsers = isAdminUser()
+    ? state.users
+    : state.users.filter((user) => user.id === state.currentUserId);
+  const processGroups = await Promise.all(visibleUsers.map(async (user) => {
     const processes = await apiRequest(`/api/users/${user.id}/processes`);
     const detailed = await Promise.all(processes.map((process) => apiRequest(`/api/processes/${process.id}`)));
     return detailed.map(apiProcessToLocal);
   }));
-  state.processes = processGroups.flat();
+  const visibleIds = new Set(visibleUsers.map((user) => user.id));
+  state.processes = [
+    ...state.processes.filter((process) => !visibleIds.has(process.userId)),
+    ...processGroups.flat(),
+  ];
 }
 
 async function loadApiProcesses() {
@@ -609,8 +631,31 @@ function currentUserProcesses() {
   return state.processes.filter((process) => process.userId === state.currentUserId);
 }
 
+function normalizeRole(role = "") {
+  return String(role)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
 function isAdminUser() {
-  return state.currentUserId === "user-compras";
+  const user = currentUser();
+  const role = normalizeRole(user?.role);
+  return state.currentUserId === "user-compras" || role.includes("administrador") || role === "admin";
+}
+
+function isReadOnlyUser() {
+  const role = normalizeRole(currentUser()?.role);
+  return ["consulta", "visitante", "leitura", "somente leitura"].some((item) => role.includes(item));
+}
+
+function canEditProcesses() {
+  return !isReadOnlyUser();
+}
+
+function canManageUsers() {
+  return isAdminUser();
 }
 
 function processCountByUser() {
@@ -742,6 +787,33 @@ function percent(part, total) {
   return `${Math.round((part / total) * 100)}%`;
 }
 
+function reportProcesses() {
+  return isAdminUser() ? state.processes : currentUserProcesses();
+}
+
+function userNameById(userId) {
+  return state.users.find((user) => user.id === userId)?.name || "Usuario removido";
+}
+
+function averageOpenAge(processes) {
+  const open = processes.filter((process) => process.status !== "concluido");
+  if (!open.length) return 0;
+  return Math.round(open.reduce((sum, process) => (
+    sum + daysBetween(process.arrivalDate || process.createdAt?.slice(0, 10))
+  ), 0) / open.length);
+}
+
+function processRiskScore(processes) {
+  const open = processes.filter((process) => process.status !== "concluido");
+  const late = open.filter(isLate);
+  const urgent = open.filter((process) => process.priority === "urgente");
+  const noDeadline = open.filter((process) => !process.deadline);
+  if (!open.length) return "Sem processos em aberto";
+  if (late.length >= 5 || late.length / open.length >= 0.35) return "Critico";
+  if (late.length || urgent.length >= 3 || noDeadline.length >= 5) return "Atencao";
+  return "Controlado";
+}
+
 function normalizeReportLabel(value) {
   const raw = String(value || "").trim();
   if (!raw) return "Nao informado";
@@ -806,7 +878,9 @@ function renderUsers() {
     mode,
   ].filter(Boolean).join(" | ");
   els.manageUsersBtn.classList.toggle("hidden", !isAdminUser());
-  els.newUserBtn.classList.toggle("hidden", !isAdminUser());
+  els.newUserBtn.classList.toggle("hidden", !canManageUsers());
+  els.newProcessBtn.classList.toggle("hidden", !canEditProcesses());
+  els.quickForm.classList.toggle("hidden", !canEditProcesses());
   els.userSelect.disabled = state.apiOnline && Boolean(state.authToken) && !isAdminUser();
   els.logoutBtn.classList.toggle("hidden", !state.apiOnline);
 }
@@ -850,23 +924,38 @@ function renderMetrics() {
 }
 
 function renderReports() {
-  const processes = currentUserProcesses();
+  const processes = reportProcesses();
   const open = processes.filter((p) => p.status !== "concluido");
   const late = processes.filter(isLate);
   const done = processes.filter((p) => p.status === "concluido");
+  const urgent = open.filter((process) => process.priority === "urgente");
+  const noDeadline = open.filter((process) => !process.deadline);
   const dueSoon = open
     .map((process) => ({ process, days: daysUntil(process.deadline) }))
     .filter((item) => item.days !== null && item.days >= 0 && item.days <= 7)
     .sort((a, b) => a.days - b.days);
   const byStatus = sortedCountEntries(groupCount(processes, (process) => labelForStatus(process.status)));
   const bySecretary = sortedCountEntries(groupCount(processes, (process) => normalizeReportLabel(process.secretary)));
+  const byUser = sortedCountEntries(groupCount(processes, (process) => userNameById(process.userId)));
+  const avgAge = averageOpenAge(processes);
+  const risk = processRiskScore(processes);
+  const scope = isAdminUser() ? "Consolidado de todas as mesas carregadas" : `Mesa de ${currentUser()?.name || "usuario"}`;
 
   els.executiveReport.innerHTML = `
+    <div class="report-scope">
+      <span>Escopo do relatorio</span>
+      <strong>${escapeHTML(scope)}</strong>
+      <small>Atualizado em ${formatDate(todayISO())}</small>
+    </div>
     <div class="report-kpis">
       <article><span>Total</span><strong>${processes.length}</strong></article>
       <article><span>Em aberto</span><strong>${open.length}</strong></article>
       <article><span>Atrasados</span><strong>${late.length}</strong></article>
+      <article><span>Urgentes</span><strong>${urgent.length}</strong></article>
+      <article><span>Sem prazo</span><strong>${noDeadline.length}</strong></article>
       <article><span>Conclusao</span><strong>${percent(done.length, processes.length)}</strong></article>
+      <article><span>Idade media</span><strong>${avgAge}d</strong></article>
+      <article><span>Risco</span><strong>${escapeHTML(risk)}</strong></article>
     </div>
     <div class="report-columns">
       <div>
@@ -875,8 +964,14 @@ function renderReports() {
       </div>
       <div>
         <h3>Por secretaria</h3>
-        ${renderCountList(bySecretary.slice(0, 6))}
+        ${renderCountList(bySecretary.slice(0, 8))}
       </div>
+      ${isAdminUser() ? `
+        <div>
+          <h3>Por usuario</h3>
+          ${renderCountList(byUser.slice(0, 8))}
+        </div>
+      ` : ""}
     </div>
   `;
 
@@ -894,6 +989,26 @@ function renderReports() {
     <div class="deadline-list">
       <h3>Gargalos</h3>
       ${renderCountList(sortedCountEntries(groupCount(open, (process) => labelForStatus(process.status))).slice(0, 6))}
+    </div>
+    <div class="deadline-list">
+      <h3>Vencidos</h3>
+      ${late.length ? late.slice(0, 6).map((process) => `
+        <article>
+          <strong>${escapeHTML(process.number || "Sem numero")}</strong>
+          <span>${escapeHTML(process.subject)}</span>
+          <small>${escapeHTML(userNameById(process.userId))} | Prazo: ${formatDate(process.deadline)}</small>
+        </article>
+      `).join("") : '<div class="empty">Nenhum processo vencido.</div>'}
+    </div>
+    <div class="deadline-list">
+      <h3>Sem prazo definido</h3>
+      ${noDeadline.length ? noDeadline.slice(0, 6).map((process) => `
+        <article>
+          <strong>${escapeHTML(process.number || "Sem numero")}</strong>
+          <span>${escapeHTML(process.subject)}</span>
+          <small>${escapeHTML(userNameById(process.userId))} | ${escapeHTML(labelForStatus(process.status))}</small>
+        </article>
+      `).join("") : '<div class="empty">Todos os processos em aberto possuem prazo.</div>'}
     </div>
   `;
 }
@@ -929,6 +1044,7 @@ function processTags(process) {
 function renderKanban() {
   const filtered = filteredProcesses();
   const visibleStatuses = visibleKanbanStatuses();
+  const canEdit = canEditProcesses();
   if (!visibleStatuses.length) {
     els.kanban.innerHTML = '<div class="empty kanban-empty">Todas as colunas estao ocultas. Use Personalizar para restaurar o Kanban.</div>';
     return;
@@ -942,7 +1058,7 @@ function renderKanban() {
           <span class="counter">${items.length}</span>
         </div>
         ${items.length ? items.map((process) => `
-          <article class="process-mini" data-edit="${process.id}">
+          <article class="process-mini" ${canEdit ? `data-edit="${process.id}"` : ""}>
             <strong>${escapeHTML(process.number || "Sem numero")}</strong>
             <small>${escapeHTML(process.subject)}</small>
             <div class="row-meta">${processTags(process)}</div>
@@ -955,6 +1071,7 @@ function renderKanban() {
 
 function renderList() {
   const filtered = filteredProcesses();
+  const canEdit = canEditProcesses();
 
   if (!filtered.length) {
     const user = currentUser();
@@ -977,9 +1094,11 @@ function renderList() {
       </div>
       <div class="row-actions">
         <button type="button" data-cota="${process.id}">Cota</button>
-        <button type="button" data-move="${process.id}">Movimentar</button>
-        <button type="button" data-edit="${process.id}">Editar</button>
-        <button type="button" class="danger" data-delete="${process.id}">Excluir</button>
+        ${canEdit ? `
+          <button type="button" data-move="${process.id}">Movimentar</button>
+          <button type="button" data-edit="${process.id}">Editar</button>
+          <button type="button" class="danger" data-delete="${process.id}">Excluir</button>
+        ` : ""}
       </div>
     </article>
   `).join("");
@@ -1042,6 +1161,10 @@ function renderProcessTimeline(process) {
 }
 
 function openProcessDialog(process = null) {
+  if (!canEditProcesses()) {
+    alert("Seu perfil permite apenas consulta.");
+    return;
+  }
   els.processForm.reset();
   document.querySelector("#dialogTitle").textContent = process ? "Editar processo" : "Novo processo";
   els.processForm.elements.id.value = process?.id || "";
@@ -1121,6 +1244,10 @@ function formDataToProcess(form, existing = null) {
 
 async function saveProcess(event) {
   event.preventDefault();
+  if (!canEditProcesses()) {
+    alert("Seu perfil permite apenas consulta.");
+    return;
+  }
   const id = els.processForm.elements.id.value;
   const existing = state.processes.find((process) => process.id === id && process.userId === state.currentUserId);
   const process = formDataToProcess(els.processForm, existing);
@@ -1151,6 +1278,10 @@ async function saveProcess(event) {
 }
 
 function openMoveDialog(id) {
+  if (!canEditProcesses()) {
+    alert("Seu perfil permite apenas consulta.");
+    return;
+  }
   const process = state.processes.find((item) => item.id === id && item.userId === state.currentUserId);
   if (!process) return;
 
@@ -1462,8 +1593,8 @@ function resetKanbanSettings() {
 }
 
 function openManageUsersDialog() {
-  if (!isAdminUser()) {
-    alert("Apenas Israel Junior pode gerenciar usuarios.");
+  if (!canManageUsers()) {
+    alert("Apenas administradores podem gerenciar usuarios.");
     return;
   }
   renderManageUsers();
@@ -1471,8 +1602,8 @@ function openManageUsersDialog() {
 }
 
 async function deleteUser(userId) {
-  if (!isAdminUser()) {
-    alert("Apenas Israel Junior pode excluir usuarios.");
+  if (!canManageUsers()) {
+    alert("Apenas administradores podem excluir usuarios.");
     return;
   }
 
@@ -1509,8 +1640,8 @@ async function deleteUser(userId) {
 }
 
 async function updateUserPassword(userId, password) {
-  if (!isAdminUser()) {
-    alert("Apenas Israel Junior pode alterar senhas.");
+  if (!canManageUsers()) {
+    alert("Apenas administradores podem alterar senhas.");
     return;
   }
 
@@ -1617,6 +1748,10 @@ async function logout() {
 
 async function saveMovement(event) {
   event.preventDefault();
+  if (!canEditProcesses()) {
+    alert("Seu perfil permite apenas consulta.");
+    return;
+  }
   const data = new FormData(els.moveForm);
   const id = data.get("id");
   const process = state.processes.find((item) => item.id === id && item.userId === state.currentUserId);
@@ -1669,6 +1804,10 @@ async function saveMovement(event) {
 }
 
 async function deleteProcess(id) {
+  if (!canEditProcesses()) {
+    alert("Seu perfil permite apenas consulta.");
+    return;
+  }
   const process = state.processes.find((item) => item.id === id && item.userId === state.currentUserId);
   if (!process) return;
   if (!confirm(`Excluir o processo ${process.number || "sem numero"}?`)) return;
@@ -1689,6 +1828,10 @@ async function deleteProcess(id) {
 
 async function addQuickProcess(event) {
   event.preventDefault();
+  if (!canEditProcesses()) {
+    alert("Seu perfil permite apenas consulta.");
+    return;
+  }
   const data = new FormData(event.currentTarget);
   const number = data.get("number").trim();
   const subject = data.get("subject").trim();
@@ -1752,6 +1895,10 @@ async function addQuickProcess(event) {
 
 async function saveUser(event) {
   event.preventDefault();
+  if (!canManageUsers()) {
+    alert("Apenas administradores podem criar usuarios.");
+    return;
+  }
   const data = new FormData(els.userForm);
   const name = data.get("name").trim();
   if (!name) {
@@ -1772,7 +1919,7 @@ async function saveUser(event) {
 
   if (state.apiOnline) {
     try {
-      const saved = await apiRequest("/api/users", {
+      const saved = await apiRequest(`/api/users?admin_user_id=${encodeURIComponent(state.currentUserId)}`, {
         method: "POST",
         body: JSON.stringify({
           name: user.name,
@@ -1822,9 +1969,11 @@ function csvCell(value) {
 }
 
 function exportCsv() {
+  const processes = reportProcesses();
   const rows = [
-    ["Numero", "Ano", "Objeto", "Secretaria", "Responsavel", "Prioridade", "Status", "Chegada", "Prazo", "Saida", "Documentos"],
-    ...currentUserProcesses().map((process) => [
+    ["Usuario", "Numero", "Ano", "Objeto", "Secretaria", "Responsavel", "Prioridade", "Status", "Chegada", "Prazo", "Saida", "Documentos"],
+    ...processes.map((process) => [
+      userNameById(process.userId),
       process.number,
       process.year,
       process.subject,
@@ -1842,7 +1991,7 @@ function exportCsv() {
   const blob = new Blob([`\ufeff${csv}`], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  const userName = (currentUser()?.name || "usuario").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const userName = (isAdminUser() ? "consolidado" : currentUser()?.name || "usuario").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   link.href = url;
   link.download = `atlasflow-relatorio-${userName || "mesa"}-${todayISO()}.csv`;
   link.click();

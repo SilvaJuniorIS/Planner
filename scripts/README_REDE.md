@@ -62,8 +62,32 @@ Para criar uma copia do banco:
 Os backups ficam na pasta:
 
 ```text
-backups
+data\backups
 ```
+
+Para homologacao:
+
+```powershell
+.\scripts\backup_dados.bat homolog
+```
+
+## Restaurar backup
+
+Use apenas se precisar voltar a base para um ponto anterior.
+
+Para producao:
+
+```powershell
+.\scripts\restaurar_backup.bat
+```
+
+Para homologacao:
+
+```powershell
+.\scripts\restaurar_backup.bat homolog
+```
+
+Antes de substituir o banco, o restaurador cria uma copia do banco atual com prefixo `pre_restore`.
 
 ## 5. Firewall
 

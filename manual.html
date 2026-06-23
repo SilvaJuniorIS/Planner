@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
@@ -117,16 +117,22 @@
           </div>
           <div class="info-card">
             <h3>Operador</h3>
-            <p>Visualiza e trabalha na propria mesa. Nao gerencia usuarios.</p>
+            <p>Visualiza e trabalha na propria mesa. Pode cadastrar, editar, movimentar e gerar documentos dos seus processos. Nao gerencia usuarios.</p>
           </div>
           <div class="info-card">
-            <h3>Consulta</h3>
-            <p>Perfil planejado para acesso mais restrito, voltado a visualizacao.</p>
+            <h3>Visitante / Consulta</h3>
+            <p>Acesso em modo leitura. Visualiza processos e relatorios da propria mesa, mas nao cria, edita, movimenta nem exclui processos.</p>
           </div>
           <div class="info-card">
             <h3>Senha</h3>
             <p>Pode ser definida, limpa ou alterada pelo administrador em Gerenciar usuarios.</p>
           </div>
+        </div>
+        <div class="answer-grid">
+          <div><strong>Administrador</strong><span>Gerencia usuarios, senhas, exclusoes permitidas e pode consultar todas as mesas carregadas.</span></div>
+          <div><strong>Operador</strong><span>Opera a propria mesa e mantem o historico dos seus processos.</span></div>
+          <div><strong>Visitante</strong><span>Consulta informacoes sem alterar a base.</span></div>
+          <div><strong>Sessao</strong><span>Depois do login, a API usa uma sessao para proteger o acesso direto aos dados.</span></div>
         </div>
         <ol class="steps">
           <li>Para criar usuario, entre como Israel Junior e clique em <strong>Novo usuario</strong>.</li>
@@ -187,13 +193,23 @@
           <div class="info-card"><h3>Urgentes</h3><p>Demandas marcadas como prioridade urgente.</p></div>
           <div class="info-card"><h3>Concluidos</h3><p>Processos finalizados ou encaminhados para a proxima etapa.</p></div>
         </div>
+        <div class="cards-grid">
+          <div class="info-card"><h3>Risco</h3><p>Leitura gerencial da situacao: Controlado, Atencao, Critico ou sem processos em aberto.</p></div>
+          <div class="info-card"><h3>Sem prazo</h3><p>Processos em aberto sem data limite definida. Devem ser revisados para evitar perda de controle.</p></div>
+          <div class="info-card"><h3>Idade media</h3><p>Media de dias dos processos em aberto desde a chegada ou cadastro.</p></div>
+          <div class="info-card"><h3>Escopo</h3><p>Administrador visualiza consolidado. Operador visualiza somente a propria mesa.</p></div>
+        </div>
         <ol class="steps">
           <li>Leia primeiro a <strong>Saude da operacao</strong>.</li>
           <li>Confira <strong>Tempo medio em aberto</strong>, <strong>Proximos 7 dias</strong> e <strong>Taxa de conclusao</strong>.</li>
-          <li>Use o <strong>Relatorio executivo</strong> para reunioes e acompanhamento da equipe.</li>
-          <li>Use <strong>Gargalos e prazos</strong> para priorizar o trabalho do dia.</li>
+          <li>Use o <strong>Relatorio executivo</strong> para reunioes, cobrancas internas e demonstracao do produto.</li>
+          <li>Confira <strong>Por status</strong>, <strong>Por secretaria</strong> e, se for administrador, <strong>Por usuario</strong>.</li>
+          <li>Use <strong>Gargalos e prazos</strong> para priorizar vencidos, proximos prazos e processos sem prazo definido.</li>
           <li>Clique em <strong>Imprimir</strong> ou <strong>Exportar CSV</strong> quando precisar compartilhar dados.</li>
         </ol>
+        <div class="tip-box">
+          <strong>Uso recomendado:</strong> no inicio do dia, filtre pelos atrasados e pelos proximos 7 dias. No fim do dia, exporte CSV ou imprima o relatorio para registrar a situacao da equipe.
+        </div>
       </section>
 
       <section id="cadastro" class="manual-section">
@@ -345,13 +361,13 @@
         </div>
         <div class="cards-grid">
           <div class="info-card"><h3>JSON</h3><p>Backup completo da base do sistema.</p></div>
-          <div class="info-card"><h3>CSV</h3><p>Planilha simples com processos da mesa ativa.</p></div>
+          <div class="info-card"><h3>CSV</h3><p>Planilha gerencial. Para administrador, exporta o consolidado carregado; para operador, exporta a propria mesa.</p></div>
           <div class="info-card"><h3>DOCX</h3><p>Documento editavel gerado pela API.</p></div>
           <div class="info-card"><h3>PDF</h3><p>Documento final para compartilhar ou arquivar.</p></div>
         </div>
         <ul class="check-list">
           <li>Use JSON para backup e migracao.</li>
-          <li>Use CSV para relatorios em planilha.</li>
+          <li>Use CSV para relatorios em planilha, conferencias e acompanhamento gerencial.</li>
           <li>Use DOCX quando precisar editar o documento no Word.</li>
           <li>Use PDF quando quiser uma versao fechada para envio ou arquivo.</li>
         </ul>
@@ -377,9 +393,15 @@
           <li>Guarde o arquivo em local seguro.</li>
           <li>Para restaurar ou migrar, use <strong>Importar JSON</strong>.</li>
           <li>Em ambiente com API, a importacao e fixada no banco de dados.</li>
+          <li>Para backup do banco SQLite, use <code>scripts\backup_dados.bat</code>. Os arquivos ficam em <code>data\backups</code>.</li>
+          <li>Para restaurar banco, use <code>scripts\restaurar_backup.bat</code>. O restaurador cria uma copia do banco atual antes de substituir.</li>
         </ol>
         <div class="tip-box">
           <strong>Homologacao:</strong> quando a base de producao for copiada para homologacao, o banco antigo da homologacao deve ser salvo em backup antes da troca.
+        </div>
+        <div class="example-box">
+          <strong>Importante:</strong>
+          <p>Antes de restaurar backup, avise os usuarios, pare a API do ambiente restaurado e confirme se esta na pasta correta: <code>C:\Planner</code> para producao ou <code>C:\Planner_Homolog</code> para homologacao.</p>
         </div>
       </section>
 
@@ -420,6 +442,14 @@
             <p>Clique em Limpar para remover filtros. Confira tambem se voce esta no usuario correto.</p>
           </details>
           <details>
+            <summary>Apareceu sessao obrigatoria ou sessao expirada</summary>
+            <p>Saia do sistema e entre novamente. A sessao protege a API contra acesso direto sem login.</p>
+          </details>
+          <details>
+            <summary>Nao consigo criar, editar ou movimentar processos</summary>
+            <p>Confira seu perfil. Usuarios Visitante ou Consulta entram em modo leitura e nao alteram processos.</p>
+          </details>
+          <details>
             <summary>Os dados parecem antigos</summary>
             <p>Clique em Atualizar. Se estiver em homologacao, confirme se a base de producao foi copiada recentemente.</p>
           </details>
@@ -446,3 +476,4 @@
   </main>
 </body>
 </html>
+
