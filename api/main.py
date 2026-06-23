@@ -29,6 +29,7 @@ PROJECT_ROOT = BASE_DIR.parent
 LEGACY_DATA_DIR = BASE_DIR / "data"
 DATA_DIR = Path(os.getenv("ATLASFLOW_DATA_DIR", PROJECT_ROOT / "data"))
 DB_PATH = Path(os.getenv("ATLASFLOW_DB", DATA_DIR / "atlasflow.sqlite3"))
+REQUIRE_PASSWORDS = os.getenv("ATLASFLOW_REQUIRE_PASSWORDS", "").strip().lower() in {"1", "true", "yes", "sim"}
 
 STATUSES = {"entrada", "analisar", "criar", "revisar", "devolver", "concluido"}
 PRIORITIES = {"normal", "urgente"}
@@ -719,6 +720,8 @@ def login(payload: AuthLogin) -> dict[str, Any]:
         user = ensure_user(conn, payload.user_id)
         saved_hash = user["password_hash"]
         saved_salt = user["password_salt"]
+        if REQUIRE_PASSWORDS and not saved_hash:
+            raise HTTPException(status_code=401, detail="Usuario precisa ter senha configurada antes de entrar")
         if saved_hash and password_hash(payload.password, saved_salt) != saved_hash:
             raise HTTPException(status_code=401, detail="Senha invalida")
         if not saved_hash and payload.password:
