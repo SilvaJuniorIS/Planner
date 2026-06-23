@@ -785,6 +785,11 @@ dialog::backdrop {
   border: 1px solid rgba(255, 255, 255, 0.72);
 }
 
+.compact-modal {
+  max-width: 620px;
+  margin: 0 auto;
+}
+
 .modal-head {
   display: flex;
   align-items: flex-start;

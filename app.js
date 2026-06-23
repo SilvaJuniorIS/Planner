@@ -154,6 +154,7 @@ const els = {
   loginStatus: document.querySelector("#loginStatus"),
   refreshDataBtn: document.querySelector("#refreshDataBtn"),
   manageUsersBtn: document.querySelector("#manageUsersBtn"),
+  myPasswordBtn: document.querySelector("#myPasswordBtn"),
   newUserBtn: document.querySelector("#newUserBtn"),
   newProcessBtn: document.querySelector("#newProcessBtn"),
   quickForm: document.querySelector("#quickForm"),
@@ -161,6 +162,8 @@ const els = {
   logoutBtn: document.querySelector("#logoutBtn"),
   manageUsersDialog: document.querySelector("#manageUsersDialog"),
   manageUsersList: document.querySelector("#manageUsersList"),
+  myPasswordDialog: document.querySelector("#myPasswordDialog"),
+  myPasswordForm: document.querySelector("#myPasswordForm"),
   kanbanSettingsDialog: document.querySelector("#kanbanSettingsDialog"),
   kanbanSettingsList: document.querySelector("#kanbanSettingsList"),
   processTimeline: document.querySelector("#processTimeline"),
@@ -890,6 +893,7 @@ function renderUsers() {
     mode,
   ].filter(Boolean).join(" | ");
   els.manageUsersBtn.classList.toggle("hidden", !isAdminUser());
+  els.myPasswordBtn.classList.toggle("hidden", state.apiOnline && !state.authToken);
   els.newUserBtn.classList.toggle("hidden", !canManageUsers());
   els.newProcessBtn.classList.toggle("hidden", !canEditProcesses());
   els.quickForm.classList.toggle("hidden", !canEditProcesses());
@@ -1707,6 +1711,79 @@ async function clearUserPassword(userId) {
   await updateUserPassword(userId, "");
 }
 
+function openMyPasswordDialog() {
+  const user = currentUser();
+  if (!user) return;
+  els.myPasswordForm.reset();
+  const hint = document.querySelector("#myPasswordHint");
+  if (hint) {
+    hint.textContent = user.passwordEnabled
+      ? "Informe sua senha atual antes de salvar a nova senha."
+      : "Este usuario ainda nao possui senha. Deixe a senha atual em branco e defina a nova senha.";
+  }
+  els.myPasswordDialog.showModal();
+}
+
+async function saveMyPassword(event) {
+  event.preventDefault();
+  const user = currentUser();
+  if (!user) return;
+
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const currentPassword = data.get("currentPassword") || "";
+  const newPassword = data.get("newPassword") || "";
+  const confirmPassword = data.get("confirmPassword") || "";
+
+  if (newPassword.length < 4) {
+    alert("A nova senha precisa ter pelo menos 4 caracteres.");
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    alert("A confirmacao da senha nao confere.");
+    return;
+  }
+
+  if (state.apiOnline) {
+    try {
+      const saved = await apiRequest("/api/auth/password", {
+        method: "PATCH",
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+        }),
+      });
+      state.users = state.users.map((item) => (item.id === user.id ? apiUserToLocal(saved) : item));
+    } catch (error) {
+      alert(`Nao foi possivel alterar sua senha: ${error.message}`);
+      return;
+    }
+  } else {
+    if (user.passwordHash && user.passwordHash !== simplePasswordHash(currentPassword)) {
+      alert("Senha atual invalida.");
+      return;
+    }
+    if (!user.passwordHash && currentPassword) {
+      alert("Este usuario ainda nao possui senha configurada.");
+      return;
+    }
+    state.users = state.users.map((item) => (
+      item.id === user.id
+        ? {
+            ...item,
+            passwordEnabled: true,
+            passwordHash: simplePasswordHash(newPassword),
+          }
+        : item
+    ));
+  }
+
+  persist();
+  renderAll();
+  closeDialog(els.myPasswordDialog);
+  alert("Sua senha foi atualizada.");
+}
+
 async function refreshData() {
   if (state.apiOnline) {
     try {
@@ -2105,6 +2182,7 @@ function bindEvents() {
   document.querySelector("#refreshDataBtn").addEventListener("click", refreshData);
   document.querySelector("#logoutBtn").addEventListener("click", logout);
   document.querySelector("#manageUsersBtn").addEventListener("click", openManageUsersDialog);
+  document.querySelector("#myPasswordBtn").addEventListener("click", openMyPasswordDialog);
   document.querySelector("#customizeKanbanBtn").addEventListener("click", openKanbanSettingsDialog);
   document.querySelector("#closeProcessDialog").addEventListener("click", () => closeDialog(els.processDialog));
   document.querySelector("#cancelProcessBtn").addEventListener("click", () => closeDialog(els.processDialog));
@@ -2114,6 +2192,8 @@ function bindEvents() {
   document.querySelector("#cancelUserBtn").addEventListener("click", () => closeDialog(els.userDialog));
   document.querySelector("#closeManageUsersDialog").addEventListener("click", () => closeDialog(els.manageUsersDialog));
   document.querySelector("#doneManageUsersBtn").addEventListener("click", () => closeDialog(els.manageUsersDialog));
+  document.querySelector("#closeMyPasswordDialog").addEventListener("click", () => closeDialog(els.myPasswordDialog));
+  document.querySelector("#cancelMyPasswordBtn").addEventListener("click", () => closeDialog(els.myPasswordDialog));
   document.querySelector("#closeKanbanSettingsDialog").addEventListener("click", () => closeDialog(els.kanbanSettingsDialog));
   document.querySelector("#doneKanbanSettingsBtn").addEventListener("click", () => closeDialog(els.kanbanSettingsDialog));
   document.querySelector("#resetKanbanSettingsBtn").addEventListener("click", resetKanbanSettings);
@@ -2152,6 +2232,7 @@ function bindEvents() {
   els.processForm.addEventListener("submit", saveProcess);
   els.moveForm.addEventListener("submit", saveMovement);
   els.userForm.addEventListener("submit", saveUser);
+  els.myPasswordForm.addEventListener("submit", saveMyPassword);
 
   els.userSelect.addEventListener("change", async () => {
     state.currentUserId = els.userSelect.value;

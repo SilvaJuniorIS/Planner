@@ -59,6 +59,11 @@ class UserPasswordUpdate(BaseModel):
     password: str = ""
 
 
+class SelfPasswordUpdate(BaseModel):
+    current_password: str = ""
+    new_password: str = Field(..., min_length=1)
+
+
 class AuthLogin(BaseModel):
     user_id: str
     password: str
@@ -666,6 +671,26 @@ def update_user_password(user_id: str, payload: UserPasswordUpdate, authorizatio
             (hashed, salt, user_id),
         )
         return row_to_user(conn.execute("select * from users where id = ?", (user_id,)).fetchone())
+
+
+@app.patch("/api/auth/password", response_model=User)
+def update_own_password(payload: SelfPasswordUpdate, authorization: str = Header(default="")) -> dict[str, Any]:
+    with db() as conn:
+        user = require_session_user(conn, authorization)
+        saved_hash = user["password_hash"]
+        saved_salt = user["password_salt"]
+
+        if saved_hash and password_hash(payload.current_password, saved_salt) != saved_hash:
+            raise HTTPException(status_code=401, detail="Senha atual invalida")
+        if not saved_hash and payload.current_password:
+            raise HTTPException(status_code=401, detail="Usuario ainda nao possui senha configurada")
+
+        salt, hashed = build_password_fields(payload.new_password)
+        conn.execute(
+            "update users set password_hash = ?, password_salt = ? where id = ?",
+            (hashed, salt, user["id"]),
+        )
+        return row_to_user(conn.execute("select * from users where id = ?", (user["id"],)).fetchone())
 
 
 @app.delete("/api/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
