@@ -116,6 +116,12 @@ button.primary:hover {
   background: var(--primary-dark);
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+  box-shadow: none;
+}
+
 button.danger {
   color: var(--danger);
   border-color: rgba(180, 35, 24, 0.35);
@@ -586,6 +592,23 @@ main {
   margin: -2px 0 0;
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.quick-feedback {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(20, 130, 92, 0.24);
+  border-radius: var(--radius);
+  background: rgba(20, 130, 92, 0.10);
+  color: #0b6848;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.quick-feedback[data-type="error"] {
+  border-color: rgba(180, 35, 24, 0.24);
+  background: rgba(180, 35, 24, 0.10);
+  color: var(--danger);
 }
 
 .list-panel {

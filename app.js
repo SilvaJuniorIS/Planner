@@ -157,6 +157,7 @@ const els = {
   newUserBtn: document.querySelector("#newUserBtn"),
   newProcessBtn: document.querySelector("#newProcessBtn"),
   quickForm: document.querySelector("#quickForm"),
+  quickFeedback: document.querySelector("#quickFeedback"),
   logoutBtn: document.querySelector("#logoutBtn"),
   manageUsersDialog: document.querySelector("#manageUsersDialog"),
   manageUsersList: document.querySelector("#manageUsersList"),
@@ -620,6 +621,17 @@ function formatDate(value) {
   if (!value) return "Sem data";
   const [year, month, day] = value.split("-");
   return `${day}/${month}/${year}`;
+}
+
+function showQuickFeedback(message, type = "success") {
+  if (!els.quickFeedback) return;
+  els.quickFeedback.textContent = message;
+  els.quickFeedback.dataset.type = type;
+  els.quickFeedback.classList.remove("hidden");
+  window.clearTimeout(showQuickFeedback.timeoutId);
+  showQuickFeedback.timeoutId = window.setTimeout(() => {
+    els.quickFeedback.classList.add("hidden");
+  }, 3500);
 }
 
 function currentUser() {
@@ -1828,16 +1840,29 @@ async function deleteProcess(id) {
 
 async function addQuickProcess(event) {
   event.preventDefault();
+  const form = event.currentTarget;
+  const submitButton = form.querySelector('button[type="submit"]');
+  const originalButtonText = submitButton?.textContent || "Registrar entrada";
+
   if (!canEditProcesses()) {
     alert("Seu perfil permite apenas consulta.");
     return;
   }
-  const data = new FormData(event.currentTarget);
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.textContent = "Registrando...";
+  }
+
+  const data = new FormData(form);
   const number = data.get("number").trim();
   const subject = data.get("subject").trim();
 
   if (!number && !subject) {
     alert("Informe ao menos o numero ou o objeto.");
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = originalButtonText;
+    }
     return;
   }
 
@@ -1873,24 +1898,31 @@ async function addQuickProcess(event) {
     ],
   };
 
-  if (state.apiOnline) {
-    try {
+  try {
+    if (state.apiOnline) {
       const saved = await apiRequest(`/api/users/${state.currentUserId}/processes`, {
         method: "POST",
         body: JSON.stringify(localProcessToApi(process)),
       });
       state.processes.push(apiProcessToLocal(saved));
       await loadAllApiProcesses();
-    } catch (error) {
-      alert(`Nao foi possivel registrar na API: ${error.message}`);
-      return;
+    } else {
+      state.processes.push(process);
     }
-  } else {
-    state.processes.push(process);
+    persist();
+    form.reset();
+    form.elements.priority.value = "normal";
+    showQuickFeedback("Entrada registrada com sucesso. A lista foi atualizada.");
+    renderAll();
+  } catch (error) {
+    showQuickFeedback("Nao foi possivel registrar a entrada.", "error");
+    alert(`Nao foi possivel registrar na API: ${error.message}`);
+  } finally {
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.textContent = originalButtonText;
+    }
   }
-  persist();
-  event.currentTarget.reset();
-  renderAll();
 }
 
 async function saveUser(event) {
